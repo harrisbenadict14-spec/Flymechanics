@@ -19,8 +19,8 @@ const T = 7.9
  */
 const c = site.navigator.captions
 const STEPS: { at: number; caption: string; count: number }[] = [
-  { at: 0, caption: c[0], count: 0 }, // Chennai (Hub)
-  { at: 1.5, caption: c[2], count: 1 }, // Southeast Asia — Singapore
+  { at: 0, caption: c[0], count: 1 }, // Chennai (Hub)
+  { at: 1.5, caption: c[2], count: 2 }, // Southeast Asia — Singapore
   { at: 3.2, caption: c[1], count: 3 }, // Europe — London & Frankfurt
   { at: 5.6, caption: c[3], count: 4 }, // North America — New York
   { at: 7.0, caption: c[4], count: 4 }, // Four routes, one hub
@@ -170,7 +170,7 @@ export function Navigator() {
               style={{ height: '100%', background: 'var(--gold)', transformOrigin: 'left', transform: 'scaleX(1)' }}
             />
           </div>
-          <a href="#services" className="t-label" style={{ color: 'var(--on-black-78)', width: 'fit-content', textDecoration: 'underline' }}>
+          <a href="#services" className="t-label link-target" style={{ color: 'var(--on-black-78)', width: 'fit-content', textDecoration: 'underline' }}>
             Skip animation
           </a>
         </div>

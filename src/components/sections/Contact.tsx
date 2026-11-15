@@ -11,7 +11,8 @@ import { scheduleRefresh, useAfterQuiet } from '~/lib/scroll'
 
 if (typeof window !== 'undefined') gsap.registerPlugin(ScrollTrigger)
 
-const EMERGENCY = site.faq[3].a // the single emergency statement, used everywhere (spec 14)
+const emergencyFaq = site.faq.find((f) => f.q.toLowerCase().includes('office hours'))
+const EMERGENCY = emergencyFaq ? emergencyFaq.a : site.faq[3]?.a ?? ''
 
 /**
  * Chapter 09. Close and landing. The blue-hour runway film stays on screen and plays while the heading, the quote

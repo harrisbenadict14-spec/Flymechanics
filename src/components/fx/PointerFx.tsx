@@ -24,13 +24,21 @@ export function PointerFx() {
     const moveX = gsap.quickTo(dot, 'x', { duration: 0.28, ease: 'power3.out' })
     const moveY = gsap.quickTo(dot, 'y', { duration: 0.28, ease: 'power3.out' })
     const pulls = new Map<HTMLElement, true>()
+    let frame = -1
 
     const onMove = (e: PointerEvent) => {
       if (e.pointerType && e.pointerType !== 'mouse') return
       dot.style.opacity = '1'
       moveX(e.clientX)
       moveY(e.clientY)
-      const over = (e.target as Element | null)?.closest(INTERACTIVE)
+      // Pointer moves arrive several times per frame. The dot glides on quickTo, so only the work that reads layout or
+      // starts a tween needs to run: once per frame, not once per event. Measuring every pill on every move forced a
+      // layout each time, which stuttered the whole page while the mouse was moving.
+      if (gsap.ticker.frame === frame) return
+      frame = gsap.ticker.frame
+
+      const el = e.target as Element | null
+      const over = el ? el.closest(INTERACTIVE) : null
       gsap.to(dot, { scale: over ? 3 : 1, duration: 0.25, ease: 'power2.out', overwrite: 'auto' })
 
       // Magnetic pull on pills near the pointer. The fixed header pill keeps its own transform, so it is skipped.

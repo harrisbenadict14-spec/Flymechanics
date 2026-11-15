@@ -11,6 +11,16 @@ export default defineConfig({
       // Hashed build files never change; the films are fetched again at most once a day, and may be served stale
       // while they refresh, so a returning visitor does not download them again.
       routeRules: {
+        // Basic protections on every response: no MIME sniffing, no framing by other sites, and only the origin is
+        // sent as the referrer to other sites.
+        '/**': {
+          headers: {
+            'x-content-type-options': 'nosniff',
+            'x-frame-options': 'SAMEORIGIN',
+            'referrer-policy': 'strict-origin-when-cross-origin',
+            'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+          },
+        },
         '/assets/**': { headers: { 'cache-control': 'public, max-age=31536000, immutable' } },
         '/media/**': { headers: { 'cache-control': 'public, max-age=86400, stale-while-revalidate=604800' } },
       },

@@ -480,6 +480,10 @@ html[data-motion='off'] *::after {
   margin-bottom: 8px;
 }
 @media (max-width: 820px) {
+  /* On a phone the three columns stack, so the ribbon runs straight through their text: keep it faint there. */
+  .apr-ribbon {
+    opacity: 0.22;
+  }
   .apr-top {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -534,10 +538,19 @@ html[data-motion='off'] *::after {
 .faq-a {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur-3) var(--ease-enter);
+  /* A closed answer is hidden, not just folded to zero height: otherwise screen readers still read it and text
+     search lands on something that cannot be seen. It hides only once the fold has finished. */
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--dur-3) var(--ease-enter),
+    visibility 0s linear var(--dur-3);
 }
 .faq-a[data-open='true'] {
   grid-template-rows: 1fr;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--dur-3) var(--ease-enter),
+    visibility 0s;
 }
 .faq-a-inner {
   overflow: hidden;
@@ -620,6 +633,9 @@ html[data-motion='off'] *::after {
   line-height: 1.5;
 }
 .close-details a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   text-decoration: none;
 }
 .close-details a:hover {
@@ -657,6 +673,10 @@ html[data-motion='off'] *::after {
   gap: 8px 24px;
 }
 .close-nav a {
+  /* 24px tall at least, so each link is an easy target on a phone (WCAG 2.2) */
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   text-decoration: none;
 }
 .close-nav a:hover {
@@ -1063,17 +1083,25 @@ html[data-motion='full'][data-tier='A'] .close-stick video {
   text-align: center;
   gap: clamp(12px, 2.2svh, 22px);
 }
-.hero-kicker {
-  margin: 0;
-  font: 500 clamp(11px, 1vw, 14px)/1.4 var(--font-ui);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  text-shadow: 0 1px 14px rgba(4, 38, 58, 0.45);
-}
 .hero-wordmark {
   width: 100%;
-  color: #fff;
-  text-shadow: 0 2px 30px rgba(4, 38, 58, 0.25);
+  display: flex;
+  justify-content: center;
+}
+.hero-logo {
+  position: relative;
+  /* sized by screen height, capped at the available width; 1865 / 570 is the image's shape */
+  width: min(100%, calc(clamp(110px, 26svh, 280px) * 3.272));
+  aspect-ratio: 1865 / 570;
+}
+/* Every piece is the whole logo, clipped (inline) to its own columns, so the pieces line up exactly. The image has a
+   white halo painted in (the logo is dark, the sky film is not) and 64 px of room around the 1865 x 570 artwork for
+   it, so each piece reaches that far outside the box. */
+.hero-logo-piece {
+  position: absolute;
+  inset: calc(-64 / 570 * 100%) calc(-64 / 1865 * 100%);
+  background: url('/logo-hero.webp') center / 100% 100% no-repeat;
+  will-change: transform;
 }
 .hero-tagline {
   margin: 0;

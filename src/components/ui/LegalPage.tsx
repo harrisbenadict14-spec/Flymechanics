@@ -3,13 +3,13 @@ import { WithMarkers } from './OwnerConfirm'
 
 export interface LegalSection {
   heading: string
-  /** Paragraphs. Any [CONFIRM ...] marker in them is shown as an owner-confirmation marker. */
+  /** Paragraphs. Any owner-confirmation marker in them is shown as an owner-confirmation marker. */
   body: string[]
 }
 
 /**
  * Shared layout for the Privacy Policy and Terms pages. Both are drafts for lawyer review (spec 14): they say so on
- * the page, and everything not yet confirmed stays a visible marker.
+ * the page, and everything not yet confirmed stays a visible owner-confirmation marker.
  */
 export function LegalPage({ title, sections, children }: { title: string; sections: LegalSection[]; children?: ReactNode }) {
   return (

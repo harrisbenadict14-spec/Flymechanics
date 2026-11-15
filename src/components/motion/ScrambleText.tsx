@@ -30,7 +30,12 @@ export const ScrambleText = forwardRef<ScrambleHandle, { text: string; className
     return out
   }, [text])
 
-  const chars = () => Array.from(boxRef.current?.querySelectorAll<HTMLElement>('[data-c]') ?? [])
+  // Cached for the same reason: render() runs on every scroll frame, and a DOM query per frame per line is waste.
+  const elsRef = useRef<HTMLElement[] | null>(null)
+  const chars = () => {
+    if (!elsRef.current) elsRef.current = Array.from(boxRef.current?.querySelectorAll<HTMLElement>('[data-c]') ?? [])
+    return elsRef.current
+  }
 
   useImperativeHandle(
     ref,
@@ -38,12 +43,17 @@ export const ScrambleText = forwardRef<ScrambleHandle, { text: string; className
       render(p: number) {
         const els = chars()
         const n = text.length
-        els.forEach((el) => {
+        for (const el of els) {
           const i = Number(el.dataset.i)
-          const final = text[i]
-          if (p >= 1 || p >= (i + 1) / (n + 1)) el.textContent = final
-          else el.textContent = p <= 0 ? '' : GLYPHS[Math.floor(Math.random() * GLYPHS.length)]
-        })
+          const next =
+            p >= 1 || p >= (i + 1) / (n + 1)
+              ? text[i]
+              : p <= 0
+                ? ''
+                : GLYPHS[Math.floor(Math.random() * GLYPHS.length)]
+          // Decoded characters keep their glyph, so most of the line is written once instead of every frame.
+          if (el.textContent !== next) el.textContent = next
+        }
       },
     }),
     [text],
@@ -51,6 +61,7 @@ export const ScrambleText = forwardRef<ScrambleHandle, { text: string; className
 
   // Fix each box to the width of its final character (after fonts load), so scrambling cannot shift the line.
   useIsoLayoutEffect(() => {
+    elsRef.current = null
     const fix = () => {
       const els = chars()
       const prev = els.map((el) => el.textContent)

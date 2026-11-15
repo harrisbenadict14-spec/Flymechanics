@@ -13,12 +13,46 @@ const hits = new Map<string, number[]>()
 const WINDOW_MS = 10 * 60 * 1000
 const MAX_HITS = 5
 
+const MAX_TRACKED = 5000
+
 function limited(ip: string): boolean {
   const now = Date.now()
+  // Forget addresses whose window has passed, so the map cannot grow for as long as the server runs.
+  if (hits.size > MAX_TRACKED) {
+    for (const [key, times] of hits) {
+      if (times.every((t) => now - t >= WINDOW_MS)) hits.delete(key)
+    }
+    // Still full (a flood from many addresses): drop the oldest entries rather than grow without limit.
+    for (const key of hits.keys()) {
+      if (hits.size <= MAX_TRACKED) break
+      hits.delete(key)
+    }
+  }
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS)
-  recent.push(now)
+  // Count only up to one past the limit: a blocked address that keeps trying does not push its own block forward
+  // for ever, and its list stays short.
+  if (recent.length <= MAX_HITS) recent.push(now)
   hits.set(ip, recent)
   return recent.length > MAX_HITS
+}
+
+// The browser sends JSON, and anyone can post anything to this endpoint. Every field is forced to the type the rest
+// of the handler expects, so a missing or wrongly typed field becomes a validation message, not a server error.
+const text = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '')
+function clean(d: unknown): QuoteInput {
+  const o = (typeof d === 'object' && d !== null ? d : {}) as Record<string, unknown>
+  return {
+    name: text(o.name, 500),
+    company: text(o.company, 500),
+    email: text(o.email, 500),
+    phone: text(o.phone, 100),
+    service: text(o.service, 200),
+    travellers: text(o.travellers, 20),
+    message: text(o.message, 5000),
+    consent: o.consent === true,
+    website: text(o.website, 200),
+    turnstile: typeof o.turnstile === 'string' ? o.turnstile.slice(0, 4096) : undefined,
+  }
 }
 
 const ENTITIES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
@@ -28,13 +62,21 @@ async function verifyTurnstile(token: string | undefined, ip: string): Promise<b
   const secret = process.env.TURNSTILE_SECRET_KEY
   if (!secret) return true // not configured: spam control then relies on the honeypot and the rate limit
   if (!token) return false
-  const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ secret, response: token, remoteip: ip }),
-  })
-  const json = (await res.json()) as { success?: boolean }
-  return json.success === true
+  try {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret, response: token, remoteip: ip }),
+      signal: AbortSignal.timeout(8000),
+    })
+    const json = (await res.json()) as { success?: boolean }
+    return json.success === true
+  } catch (err) {
+    // The check service is unreachable or slow: treat it as "not confirmed" so the visitor gets a clear message
+    // and can try again, instead of the request failing with a server error.
+    console.error('[quote] spam check failed', err)
+    return false
+  }
 }
 
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string) {
@@ -46,6 +88,7 @@ async function sendEmail(to: string, subject: string, html: string, replyTo?: st
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
     body: JSON.stringify({ from, to, subject, html, reply_to: replyTo }),
+    signal: AbortSignal.timeout(10000),
   })
   if (!res.ok) throw new Error(`email_failed_${res.status}`)
 }
@@ -58,6 +101,7 @@ async function storeEnquiry(record: Record<string, unknown>) {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(record),
+    signal: AbortSignal.timeout(10000),
   })
   if (!res.ok) throw new Error(`store_failed_${res.status}`)
 }
@@ -68,7 +112,7 @@ async function storeEnquiry(record: Record<string, unknown>) {
  * It never reports success unless delivery to the team or to storage really happened.
  */
 export const submitQuote = createServerFn({ method: 'POST' })
-  .validator((d: QuoteInput) => d)
+  .validator((d: unknown) => clean(d))
   .handler(async ({ data }): Promise<QuoteResult> => {
     // Honeypot: bots fill the hidden field. Pretend it worked and do nothing.
     if (data.website && data.website.trim() !== '') return { ok: true }
@@ -111,7 +155,9 @@ export const submitQuote = createServerFn({ method: 'POST' })
         const rows = Object.entries(record)
           .map(([k, v]) => `<tr><td><b>${esc(k)}</b></td><td>${esc(String(v))}</td></tr>`)
           .join('')
-        await sendEmail(to, `New quote request from ${record.company}`, `<table>${rows}</table>`, record.email)
+        // One line only in the subject, whatever was typed into the company field.
+        const company = record.company.replace(/[\r\n\t]+/g, ' ').slice(0, 120)
+        await sendEmail(to, `New quote request from ${company}`, `<table>${rows}</table>`, record.email)
         delivered = true
         // Acknowledgement to the sender. It promises no response time (none is confirmed).
         await sendEmail(

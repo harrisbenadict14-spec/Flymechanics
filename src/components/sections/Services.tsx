@@ -113,7 +113,8 @@ function ServiceRow({ service, index }: { service: Service; index: number }) {
       <div className="svc-flow">
         <div className="svc-card">
           <div data-svc-rise className="svc-head">
-            <h2 className="svc-title m-0">{service.title}</h2>
+            {/* h3: each service sits under the section's own "Services" heading. */}
+            <h3 className="svc-title m-0">{service.title}</h3>
             <span aria-hidden="true" className="svc-num">
               {`S'${service.n}`}
             </span>

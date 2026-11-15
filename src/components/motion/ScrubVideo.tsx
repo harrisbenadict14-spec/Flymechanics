@@ -71,7 +71,9 @@ export const ScrubVideo = forwardRef<ScrubHandle, ScrubVideoProps>(function Scru
   const raf = useRef(0)
   const [src, setSrc] = useState<string | undefined>(undefined)
   const files = media[mediaKey]
-  const [order] = useState(() => (lazy ? warmOrder++ : 0))
+  // Bounded: the counter is module-level, so without it a client-side return to the home page would push every film
+  // further back in the warm-up queue than the page has films.
+  const [order] = useState(() => (lazy ? warmOrder++ % 8 : 0))
 
   const apply = useCallback(() => {
     raf.current = 0

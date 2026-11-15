@@ -1,5 +1,5 @@
 // Single content file. Copy is the owner's, from FLYMECHANICS_BUILD_SPEC.md section 6, verbatim.
-// Do not reword. Every [CONFIRM ...] marker stays visible until the owner supplies verified information.
+// Do not reword. Every owner-confirmation marker stays visible until the owner supplies verified information.
 export const site = {
   brand: "Flymechanics",
   wordmark: "FLYMECHANICS.",

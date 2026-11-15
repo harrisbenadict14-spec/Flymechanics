@@ -65,17 +65,33 @@ export function ScrollEngine() {
     let v = 0
     let max = 0
     let lastV = ''
-    // The two velocity variables are written only on the film containers that use them. Written on <html> they are
-    // inherited by every element, so each frame of scrolling re-computed the style of the whole page (about a sixth
-    // of the main thread on a phone-sized layout).
-    let targets: HTMLElement[] = []
-    const collect = () => {
-      targets = Array.from(document.querySelectorAll<HTMLElement>('.stage, .nav-section, .svc-stick, .close-stick'))
+    // The two velocity variables are applied by a stylesheet rule on the film containers that use them. Written on
+    // <html> they are inherited by every element, so each frame of scrolling re-computed the style of the whole page
+    // (about a sixth of the main thread on a phone-sized layout). A rule rather than inline styles, because those
+    // containers are React's: writing their style attribute before TanStack's route boundary hydrated made React
+    // report a hydration mismatch, and React then overwrote the value on its next render.
+    const VELOCITY = '.stage,.nav-section,.svc-stick,.close-stick'
+    let rule: CSSStyleRule | null = null
+    const write = (value: string, abs: string) => {
+      if (typeof document === 'undefined') return
+      if (!rule) {
+        let el = document.getElementById('fm-velocity') as HTMLStyleElement | null
+        if (!el) {
+          el = document.createElement('style')
+          el.id = 'fm-velocity'
+          document.head.appendChild(el)
+        }
+        const sheet = el.sheet
+        if (!sheet) return
+        if (sheet.cssRules.length === 0) sheet.insertRule(`${VELOCITY}{--v:0;--va:0}`, 0)
+        rule = sheet.cssRules[0] as CSSStyleRule
+      }
+      // Setting `cssText` on the rule is a silent no-op in Chromium, which left the variables frozen at zero.
+      rule.style.setProperty('--v', value)
+      rule.style.setProperty('--va', abs)
     }
-    const write = (name: string, value: string) => targets.forEach((t) => t.style.setProperty(name, value))
     const measure = () => {
       max = document.documentElement.scrollHeight - window.innerHeight
-      collect()
     }
     measure()
     ScrollTrigger.addEventListener('refresh', measure)
@@ -92,15 +108,13 @@ export function ScrollEngine() {
       const s = v.toFixed(3)
       if (s !== lastV) {
         lastV = s
-        write('--v', s)
-        write('--va', Math.abs(v).toFixed(3))
+        write(s, Math.abs(v).toFixed(3))
       }
     }
     gsap.ticker.add(tick)
     return () => {
       gsap.ticker.remove(tick)
-      write('--v', '0')
-      write('--va', '0')
+      write('0', '0')
       ScrollTrigger.removeEventListener('refresh', measure)
       window.removeEventListener('resize', measure)
     }
@@ -110,7 +124,8 @@ export function ScrollEngine() {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return
-      const a = (e.target as Element | null)?.closest<HTMLAnchorElement>('a[href^="#"], a[href^="/#"]')
+      const el = (e.target as Element | null)
+      const a = el ? el.closest('a[href^="#"], a[href^="/#"]') : null
       const raw = a?.getAttribute('href') ?? ''
       // '/#id' links are in-page jumps only while we are on the home page; elsewhere they navigate normally.
       const id = raw.startsWith('#') ? raw.slice(1) : raw.startsWith('/#') && window.location.pathname === '/' ? raw.slice(2) : ''

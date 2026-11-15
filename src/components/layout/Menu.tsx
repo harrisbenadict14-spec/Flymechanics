@@ -25,7 +25,25 @@ export function Menu({ open, onClose, returnFocusTo }: MenuProps) {
     document.documentElement.style.overflow = 'hidden'
     window.dispatchEvent(new CustomEvent('fm:scrolllock', { detail: true }))
     const focusables = () => Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
-    focusables()[0]?.focus()
+    const focusFirst = () => {
+      const [first] = focusables()
+      if (!first) return false
+      first.focus()
+      return panel.contains(document.activeElement)
+    }
+    // The open styles (inert, visibility) land a frame or two after this effect, and a hidden or inert element cannot
+    // take focus. Retry briefly until one sticks instead of betting on a single delay.
+    let tries = 0
+    const focusTimer = window.setInterval(() => {
+      if (focusFirst() || ++tries > 20) window.clearInterval(focusTimer)
+    }, 25)
+
+    // The header keeps focus on the MENU/Close button that opened the dialog, which is outside it. Pull any focus
+    // that lands outside back in, so Tab and screen readers stay inside the dialog.
+    const onFocusIn = (e: FocusEvent) => {
+      if (!panel.contains(e.target as Node)) focusFirst()
+    }
+    document.addEventListener('focusin', onFocusIn)
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -38,10 +56,18 @@ export function Menu({ open, onClose, returnFocusTo }: MenuProps) {
       if (items.length === 0) return
       const first = items[0]
       const last = items[items.length - 1]
-      if (e.shiftKey && document.activeElement === first) {
+      const active = document.activeElement
+      // Focus can still be outside the panel (it starts on the trigger, and anything focused before the dialog
+      // became visible stays focused). Pull it in rather than letting Tab walk the page behind the dialog.
+      if (!active || !panel.contains(active)) {
+        e.preventDefault()
+        ;(e.shiftKey ? last : first).focus()
+        return
+      }
+      if (e.shiftKey && active === first) {
         e.preventDefault()
         last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && active === last) {
         e.preventDefault()
         first.focus()
       }
@@ -49,6 +75,8 @@ export function Menu({ open, onClose, returnFocusTo }: MenuProps) {
     document.addEventListener('keydown', onKey)
     const returnTarget = returnFocusTo.current
     return () => {
+      window.clearInterval(focusTimer)
+      document.removeEventListener('focusin', onFocusIn)
       document.removeEventListener('keydown', onKey)
       document.documentElement.style.overflow = previous
       window.dispatchEvent(new CustomEvent('fm:scrolllock', { detail: false }))
@@ -98,13 +126,13 @@ export function Menu({ open, onClose, returnFocusTo }: MenuProps) {
 
       <div className="grid gap-6 md:grid-cols-[1fr_auto_auto] md:items-end" style={{ borderTop: '1px solid var(--line-dark)', paddingTop: 20 }}>
         <div className="grid gap-1 text-[14px]" style={{ color: 'var(--on-black-78)' }}>
-          <a href={c.phoneHref} style={{ color: 'inherit' }}>
+          <a href={c.phoneHref} className="link-target" style={{ color: 'inherit' }}>
             {c.phoneDisplay}
           </a>
-          <a href={`mailto:${c.email}`} style={{ color: 'inherit' }}>
+          <a href={`mailto:${c.email}`} className="link-target" style={{ color: 'inherit' }}>
             {c.email}
           </a>
-          <a href={c.whatsapp} style={{ color: 'inherit' }}>
+          <a href={c.whatsapp} className="link-target" style={{ color: 'inherit' }}>
             {site.cta.whatsapp}
           </a>
           <p className="m-0 mt-2">

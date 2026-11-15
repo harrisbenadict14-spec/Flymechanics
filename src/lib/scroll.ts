@@ -136,20 +136,29 @@ const quiet: Promise<void> =
         void settled.then(() => window.setTimeout(go, 5300))
       })
 
+// Everyone waiting on `quiet` used to resume in the same frame, so a first scroll built every chapter below the fold
+// at once: six service rows, three pinned stages, four reveal timelines and their ScrollTriggers, all measured in one
+// task. That cost a freeze of half a second to a second right where the visitor starts scrolling. Each subscriber
+// now takes the next slot in a round-robin queue, so the same work lands a frame or two apart.
+const SLOT_MS = 70
+const SLOT_COUNT = 10
+let quietSlot = 0
+
 /** True after the first interaction or the quiet period, plus an optional stagger so several do not start at once. */
 export function useAfterQuiet(staggerMs = 0): boolean {
   const [ready, setReady] = useState(false)
+  const [slot] = useState(() => quietSlot++ % SLOT_COUNT)
   useEffect(() => {
     let alive = true
     let t = 0
     void quiet.then(() => {
-      t = window.setTimeout(() => alive && setReady(true), staggerMs)
+      t = window.setTimeout(() => alive && setReady(true), staggerMs + slot * SLOT_MS)
     })
     return () => {
       alive = false
       window.clearTimeout(t)
     }
-  }, [staggerMs])
+  }, [staggerMs, slot])
   return ready
 }
 

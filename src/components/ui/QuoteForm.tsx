@@ -38,25 +38,44 @@ export function QuoteForm() {
   const turnstileRef = useRef<HTMLDivElement>(null)
   const turnstileId = useRef<string | undefined>(undefined)
 
-  // Spam check widget, only when a site key is configured.
+  // Spam check widget, only when a site key is configured. The form leaves the page while the thank-you message is
+  // shown, so the widget is drawn again each time the form comes back ("Send another request").
+  const formShown = status.kind !== 'sent'
   useEffect(() => {
-    if (!TURNSTILE_KEY || !turnstileRef.current) return
+    if (!TURNSTILE_KEY || !formShown || !turnstileRef.current) return
     const el = turnstileRef.current
+    let cancelled = false
     const render = () => {
-      if (!window.turnstile || turnstileId.current) return
+      if (cancelled || !window.turnstile || turnstileId.current) return
       turnstileId.current = window.turnstile.render(el, {
         sitekey: TURNSTILE_KEY,
         theme: 'dark',
         callback: (token: string) => setValues((v) => ({ ...v, turnstile: token })),
       })
     }
-    if (window.turnstile) return render()
-    const s = document.createElement('script')
-    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
-    s.async = true
-    s.onload = render
-    document.head.appendChild(s)
-  }, [])
+    const forget = () => {
+      cancelled = true
+      turnstileId.current = undefined
+    }
+    if (window.turnstile) {
+      render()
+      return forget
+    }
+    // Load the script once, however many times the form is shown.
+    let s = document.querySelector<HTMLScriptElement>('script[data-turnstile]')
+    if (!s) {
+      s = document.createElement('script')
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+      s.async = true
+      s.dataset.turnstile = ''
+      document.head.appendChild(s)
+    }
+    s.addEventListener('load', render)
+    return () => {
+      s.removeEventListener('load', render)
+      forget()
+    }
+  }, [formShown])
 
   const set = <K extends keyof QuoteInput>(key: K, value: QuoteInput[K]) => {
     setValues((v) => ({ ...v, [key]: value }))
@@ -100,15 +119,18 @@ export function QuoteForm() {
     }
   }
 
-  const field = (key: keyof QuoteErrors, label: string, extra?: { required?: boolean }) => ({
-    id: `${uid}-${key}`,
+  const fieldId = (key: keyof QuoteErrors) => `${uid}-${key}`
+  // Attributes for a control. Only real HTML attributes: anything else here would be written onto the <input>.
+  const field = (key: keyof QuoteErrors, extra?: { required?: boolean }) => ({
+    id: fieldId(key),
     'aria-invalid': errors[key] ? true : undefined,
     'aria-describedby': errors[key] ? `${uid}-${key}-err` : undefined,
     'aria-required': extra?.required || undefined,
-    label,
   })
 
-  const Err = ({ k }: { k: keyof QuoteErrors }) =>
+  // A plain function, not a component declared inside the render: a new component on every keystroke would remount
+  // each message, and a screen reader would announce every error again.
+  const err = (k: keyof QuoteErrors) =>
     errors[k] ? (
       <p id={`${uid}-${k}-err`} className="qf-error" role="alert">
         {errors[k]}
@@ -135,61 +157,61 @@ export function QuoteForm() {
     <form className="qf" onSubmit={onSubmit} noValidate aria-label={site.cta.quote} id="quote-form">
       <div className="qf-row">
         <div className="qf-field">
-          <label htmlFor={field('name', '').id}>Name</label>
+          <label htmlFor={fieldId('name')}>Name</label>
           <input
-            {...field('name', 'Name', { required: true })}
+            {...field('name', { required: true })}
             type="text"
             autoComplete="name"
             value={values.name}
             onChange={(e) => set('name', e.target.value)}
           />
-          <Err k="name" />
+          {err('name')}
         </div>
         <div className="qf-field">
-          <label htmlFor={field('company', '').id}>Company</label>
+          <label htmlFor={fieldId('company')}>Company</label>
           <input
-            {...field('company', 'Company', { required: true })}
+            {...field('company', { required: true })}
             type="text"
             autoComplete="organization"
             value={values.company}
             onChange={(e) => set('company', e.target.value)}
           />
-          <Err k="company" />
+          {err('company')}
         </div>
       </div>
 
       <div className="qf-row">
         <div className="qf-field">
-          <label htmlFor={field('email', '').id}>Work email</label>
+          <label htmlFor={fieldId('email')}>Work email</label>
           <input
-            {...field('email', 'Work email', { required: true })}
+            {...field('email', { required: true })}
             type="email"
             autoComplete="email"
             inputMode="email"
             value={values.email}
             onChange={(e) => set('email', e.target.value)}
           />
-          <Err k="email" />
+          {err('email')}
         </div>
         <div className="qf-field">
-          <label htmlFor={field('phone', '').id}>Phone</label>
+          <label htmlFor={fieldId('phone')}>Phone</label>
           <input
-            {...field('phone', 'Phone')}
+            {...field('phone')}
             type="tel"
             autoComplete="tel"
             inputMode="tel"
             value={values.phone}
             onChange={(e) => set('phone', e.target.value)}
           />
-          <Err k="phone" />
+          {err('phone')}
         </div>
       </div>
 
       <div className="qf-row">
         <div className="qf-field">
-          <label htmlFor={field('service', '').id}>Service interest</label>
+          <label htmlFor={fieldId('service')}>Service interest</label>
           <select
-            {...field('service', 'Service interest', { required: true })}
+            {...field('service', { required: true })}
             value={values.service}
             onChange={(e) => set('service', e.target.value)}
           >
@@ -200,12 +222,12 @@ export function QuoteForm() {
               </option>
             ))}
           </select>
-          <Err k="service" />
+          {err('service')}
         </div>
         <div className="qf-field">
-          <label htmlFor={field('travellers', '').id}>Travellers per month</label>
+          <label htmlFor={fieldId('travellers')}>Travellers per month</label>
           <input
-            {...field('travellers', 'Travellers per month')}
+            {...field('travellers')}
             type="number"
             min={1}
             step={1}
@@ -213,19 +235,19 @@ export function QuoteForm() {
             value={values.travellers}
             onChange={(e) => set('travellers', e.target.value)}
           />
-          <Err k="travellers" />
+          {err('travellers')}
         </div>
       </div>
 
       <div className="qf-field">
-        <label htmlFor={field('message', '').id}>Message</label>
+        <label htmlFor={fieldId('message')}>Message</label>
         <textarea
-          {...field('message', 'Message')}
+          {...field('message')}
           rows={4}
           value={values.message}
           onChange={(e) => set('message', e.target.value)}
         />
-        <Err k="message" />
+        {err('message')}
       </div>
 
       {/* Honeypot: hidden from people and from assistive technology. Bots fill it, and are dropped on the server. */}
@@ -239,7 +261,7 @@ export function QuoteForm() {
       <div className="qf-field">
         <label className="qf-check">
           <input
-            id={field('consent', '').id}
+            id={fieldId('consent')}
             type="checkbox"
             checked={values.consent}
             aria-invalid={errors.consent ? true : undefined}
@@ -249,7 +271,7 @@ export function QuoteForm() {
           />
           <span>I agree that Flymechanics may contact me about this enquiry.</span>
         </label>
-        <Err k="consent" />
+        {err('consent')}
         <p className="m-0" style={{ fontSize: 13, color: 'var(--on-black-78)' }}>
           See the <a href="/privacy">Privacy Policy</a>.
         </p>

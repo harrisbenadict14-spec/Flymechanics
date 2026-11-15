@@ -2,15 +2,30 @@ import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { site } from '~/content/site.content'
-import { FitText } from '~/components/motion/FitText'
 import { ScrubVideo, type ScrubHandle } from '~/components/motion/ScrubVideo'
 import { useMotion } from '~/components/motion/MotionProvider'
 import { calmPinFactor } from '~/config/motion'
-import { registerAnchors } from '~/lib/scroll'
+import { registerAnchors, scheduleRefresh } from '~/lib/scroll'
 
 if (typeof window !== 'undefined') gsap.registerPlugin(ScrollTrigger)
 
 const FULL = 'inset(0% 0% 0% 0% round 0px)'
+// The logo artwork is 1865 x 570. These are the x positions where it is cut into pieces: the kite, then
+// F L Y M E C H A N I C S. Each cut sits in the gap between two letters.
+const LOGO_W = 1865
+const LOGO_CUTS = [0, 294, 434, 528, 661, 840, 958, 1103, 1237, 1399, 1544, 1594, 1741, LOGO_W]
+// public/logo-hero.webp is that artwork with a white halo painted in (so it reads over the sky film without a live
+// CSS filter, which had to be redrawn on every scrolled frame) and LOGO_PAD px of room around it for the halo.
+const LOGO_PAD = 64
+const LOGO_FULL_W = LOGO_W + 2 * LOGO_PAD
+const LOGO_PIECES = LOGO_CUTS.slice(0, -1).map((from, i) => {
+  const to = LOGO_CUTS[i + 1]
+  const last = i === LOGO_CUTS.length - 2
+  // The outer pieces keep the halo room; neighbours overlap by a hair so no seam shows where two pieces meet.
+  const left = i === 0 ? 0 : ((LOGO_PAD + from) / LOGO_FULL_W) * 100 - 0.05
+  const right = last ? 0 : 100 - ((LOGO_PAD + to) / LOGO_FULL_W) * 100 - 0.05
+  return { key: from, clipPath: `inset(0 ${right.toFixed(3)}% 0 ${left.toFixed(3)}%)` }
+})
 const words = site.statement.split(' ')
 
 // Timeline units. Hero 3.4 units at 200vh, statement 4.25 units at 250vh: the same scroll speed (1.7 units per 100vh).
@@ -46,10 +61,9 @@ export function Opening() {
     const statement = statementRef.current
     const heroFilm = heroFilmRef.current
     const stFilm = stFilmRef.current
-    const dot = hero?.querySelector<HTMLElement>('[data-dot]')
     const letters = hero?.querySelectorAll<HTMLElement>('[data-letter]')
     const wordmark = hero?.querySelector<HTMLElement>('[data-wordmark]')
-    if (!stage || !hero || !statement || !heroFilm || !stFilm || !dot || !letters || !wordmark) return
+    if (!stage || !hero || !statement || !heroFilm || !stFilm || !letters || !wordmark) return
 
     let pinTrigger: ScrollTrigger | undefined
     const ctx = gsap.context(() => {
@@ -58,7 +72,8 @@ export function Opening() {
 
       // Load-in: the wordmark rises letter by letter, once (not scrubbed). Skipped when the page opens mid-scroll.
       if (window.scrollY < 8) {
-        gsap.set(wordmark, { clipPath: 'inset(-20% -5% 0% -5%)' })
+        // The bottom edge sits a little below the artwork, so the painted halo is not cut off while the pieces rise.
+        gsap.set(wordmark, { clipPath: 'inset(-20% -5% -6% -5%)' })
         // Rise only (no fade): the first paint stays solid, which keeps the largest paint early.
         gsap.from(letters, {
           yPercent: 110,
@@ -99,7 +114,6 @@ export function Opening() {
       tl.set(statement, { opacity: 0 }, 0)
         .to('[data-hero-fade]', { opacity: 0, y: -24, duration: 0.5, stagger: 0.05 }, 0.1)
         .to(letters, { yPercent: -45, opacity: 0, duration: 0.7, stagger: 0.025 }, 0.25)
-        .to(dot, { opacity: 0, duration: 0.4 }, 0.5)
         // The dark tint that keeps the white text readable clears as the text leaves.
         .to('[data-hero-scrim]', { opacity: 0, duration: 1 }, 0.2)
         // The film plays as you scroll: the airliner climbs away and the sky turns golden.
@@ -121,6 +135,7 @@ export function Opening() {
         .to({}, { duration: 0.1 }, st(3.1))
     }, stage)
     const unregister = registerAnchors({ hero: 0, statement: HERO_END / (HERO_END + 3.1 * K) }, pinTrigger!)
+    scheduleRefresh()
     return () => {
       unregister()
       ctx.revert()
@@ -163,18 +178,21 @@ export function Opening() {
         <div data-hero-scrim aria-hidden="true" className="hero-scrim" />
 
         <nav data-hero-fade aria-label="Page sections" className="hero-nav">
-          <a href="#services">Services</a>
+          <a href="#services">Explore</a>
           <a href="#approach">Approach</a>
-          <a href="#faq">FAQ</a>
           <a href="#contact">Contact</a>
+          <a href={site.cta.memberLoginHref}>Login</a>
         </nav>
 
         <div className="hero-copy">
-          <p data-hero-fade className="hero-kicker">
-            {site.descriptor}
-          </p>
-          <div className="hero-wordmark" aria-hidden="true">
-            <FitText text="FLYMECHANICS" />
+          <div className="hero-wordmark">
+            {/* The logo is one image shown as 13 pieces (the kite, then each letter with the strip below it), so the
+                pieces can rise and lift away one by one like the old text wordmark did. */}
+            <div data-wordmark role="img" aria-label={`${site.brand} Travel Management LLP`} className="hero-logo">
+              {LOGO_PIECES.map((p) => (
+                <span key={p.key} data-letter className="hero-logo-piece" style={{ clipPath: p.clipPath }} />
+              ))}
+            </div>
           </div>
           <p data-hero-fade className="hero-tagline">
             {site.tagline}

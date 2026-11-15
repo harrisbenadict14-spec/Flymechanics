@@ -14,6 +14,7 @@ import { FlightHud } from '~/components/hud/FlightHud'
 import { Atmosphere } from '~/components/fx/Atmosphere'
 import { ParticleField } from '~/components/fx/ParticleField'
 import { PointerFx } from '~/components/fx/PointerFx'
+import { ErrorPage, NotFoundPage } from '~/components/ui/StatusPage'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -34,6 +35,13 @@ export const Route = createRootRoute({
   }),
   component: RootComponent,
   shellComponent: RootDocument,
+  // An unknown address or an unexpected error still shows the site's header and a way back, not a bare line of text.
+  notFoundComponent: NotFoundPage,
+  errorComponent: ({ reset }) => (
+    <main id="main">
+      <ErrorPage reset={reset} />
+    </main>
+  ),
 })
 
 function RootDocument({ children }: { children: ReactNode }) {
