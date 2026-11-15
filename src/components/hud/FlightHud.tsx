@@ -118,12 +118,16 @@ export function FlightHud() {
         </ol>
       </nav>
 
-      <p className="hud-count hud-blend t-label" aria-hidden="true">
-        <span>
-          Chapter {pad(current.n)} / {pad(chapters.length)}
-        </span>
-        <span className="hud-count-name">{current.name}</span>
-      </p>
+      {/* On the first screen the hero shows its own "Chapter 01 / 09 Takeoff" note from the first paint, so this
+          counter takes over from chapter 02 and the two never sit on top of each other. */}
+      {index > 0 && (
+        <p className="hud-count hud-blend t-label" aria-hidden="true">
+          <span>
+            Chapter {pad(current.n)} / {pad(chapters.length)}
+          </span>
+          <span className="hud-count-name">{current.name}</span>
+        </p>
+      )}
     </>
   )
 }

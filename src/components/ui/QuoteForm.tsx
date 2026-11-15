@@ -38,6 +38,21 @@ export function QuoteForm() {
   const turnstileRef = useRef<HTMLDivElement>(null)
   const turnstileId = useRef<string | undefined>(undefined)
 
+  // Slide 2's call-back card sends its three fields here, then scrolls to this form to finish the request.
+  useEffect(() => {
+    const onPrefill = (ev: Event) => {
+      const d = (ev as CustomEvent<{ name?: string; phone?: string; service?: string }>).detail ?? {}
+      setValues((v) => ({
+        ...v,
+        name: d.name?.trim() || v.name,
+        phone: d.phone?.trim() || v.phone,
+        service: d.service || v.service,
+      }))
+    }
+    window.addEventListener('fm:prefill', onPrefill)
+    return () => window.removeEventListener('fm:prefill', onPrefill)
+  }, [])
+
   // Spam check widget, only when a site key is configured. The form leaves the page while the thank-you message is
   // shown, so the widget is drawn again each time the form comes back ("Send another request").
   const formShown = status.kind !== 'sent'

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { site } from '~/content/site.content'
@@ -6,6 +6,8 @@ import { ScrubVideo, type ScrubHandle } from '~/components/motion/ScrubVideo'
 import { useMotion } from '~/components/motion/MotionProvider'
 import { calmPinFactor } from '~/config/motion'
 import { registerAnchors, scheduleRefresh } from '~/lib/scroll'
+import { CallbackCard } from './CallbackCard'
+import { WithMarkers } from '~/components/ui/OwnerConfirm'
 
 if (typeof window !== 'undefined') gsap.registerPlugin(ScrollTrigger)
 
@@ -27,9 +29,27 @@ const LOGO_PIECES = LOGO_CUTS.slice(0, -1).map((from, i) => {
   return { key: from, clipPath: `inset(0 ${right.toFixed(3)}% 0 ${left.toFixed(3)}%)` }
 })
 const words = site.statement.split(' ')
+// The approved tagline "Time flies. It's up to you to be the navigator." split over two lines.
+const TAGLINE = [site.scramble.first + " It's up to you", 'to be the navigator.']
+// Fixed positions, sizes and timings (not random), so the server and browser draw the same dust.
+const DUST: CSSProperties[] = Array.from({ length: 16 }, (_, i) => ({
+  left: `${(i * 37 + 11) % 97}%`,
+  top: `${(i * 53 + 17) % 91}%`,
+  width: 2 + (i % 3),
+  height: 2 + (i % 3),
+  animationDuration: `${14 + (i % 5) * 4}s`,
+  animationDelay: `${-((i * 3) % 17)}s`,
+}))
 
 // Timeline units. Hero 3.4 units at 200vh, statement 4.25 units at 250vh: the same scroll speed (1.7 units per 100vh).
-const HERO_END = 3.4
+// Hero: three still-sky text slides (1 unit each), the landing page appears, then the airliner flies (scroll plays
+// the film), the landing text lifts away and the film closes into the window frame.
+const SLIDE = 1 // scroll length of one text slide
+const REVEAL = 3 * SLIDE // the landing page appears here
+const PLANE = REVEAL + 0.6 // the airliner starts to fly
+const LEAVE = PLANE + 1.7 // the landing text lifts away
+const WINDOW = PLANE + 2.4 // the film closes into the window frame
+const HERO_END = WINDOW + 0.8
 const K = 1.37 // statement scale
 const st = (x: number) => HERO_END + x * K
 
@@ -62,29 +82,94 @@ export function Opening() {
     const heroFilm = heroFilmRef.current
     const stFilm = stFilmRef.current
     const letters = hero?.querySelectorAll<HTMLElement>('[data-letter]')
-    const wordmark = hero?.querySelector<HTMLElement>('[data-wordmark]')
-    if (!stage || !hero || !statement || !heroFilm || !stFilm || !letters || !wordmark) return
+    if (!stage || !hero || !statement || !heroFilm || !stFilm || !letters) return
 
     let pinTrigger: ScrollTrigger | undefined
     const ctx = gsap.context(() => {
       const windowClip = () =>
         getComputedStyle(document.documentElement).getPropertyValue('--window').trim() || FULL
 
-      // Load-in: the wordmark rises letter by letter, once (not scrubbed). Skipped when the page opens mid-scroll.
-      if (window.scrollY < 8) {
-        // The bottom edge sits a little below the artwork, so the painted halo is not cut off while the pieces rise.
-        gsap.set(wordmark, { clipPath: 'inset(-20% -5% -6% -5%)' })
-        // Rise only (no fade): the first paint stays solid, which keeps the largest paint early.
-        gsap.from(letters, {
-          yPercent: 110,
-          duration: 0.6,
-          ease: 'expo.out',
-          stagger: 0.03,
-          onComplete: () => gsap.set(wordmark, { clearProps: 'clipPath' }),
+      // ---- The first screen is one still scene. Its text slides and the landing page are shown by a small state
+      // machine (below), each change a soft time-based cross-dissolve; the scroll only chooses which one. ----
+      const slides = Array.from(hero.querySelectorAll<HTMLElement>('[data-slide]'))
+      const lines = Array.from(hero.querySelectorAll<HTMLElement>('[data-line]'))
+      const wordmark = hero.querySelector<HTMLElement>('[data-wordmark]')
+      const late = Array.from(hero.querySelectorAll<HTMLElement>('[data-hero-late]'))
+      const dust = hero.querySelector<HTMLElement>('[data-dust]')
+      const landing = [wordmark, ...lines, ...late, dust].filter((e): e is HTMLElement => !!e)
+      // These fade through the --rev variable (and scroll-out through --out), so the two never fight over opacity.
+      gsap.set(heroFilm, { '--rev': window.scrollY < 8 ? 0 : 1 })
+      gsap.set(landing, { '--rev': 0 })
+      gsap.set(lines, { y: 18 })
+      gsap.set(wordmark, { y: 14 })
+      gsap.set(slides, { opacity: 0 })
+
+      let state = -1 // -1: not shown yet, 0 to 2: text slide, 3: landing page
+      let landingTl: gsap.core.Timeline | undefined
+      const fly = (on: boolean) => {
+        if (on) hero.dataset.fly = ''
+        else delete hero.dataset.fly
+      }
+      const hideLanding = (d: number) => {
+        landingTl?.kill()
+        fly(false)
+        gsap.to(landing, { '--rev': 0, duration: d, ease: 'power1.inOut', overwrite: 'auto' })
+      }
+      const showLanding = () => {
+        // Logo (with its subtitle), then the headline line by line, then nav, buttons and chapter note; the airliner's
+        // slow drift and the gold dust only begin once all of it is in.
+        landingTl = gsap
+          .timeline()
+          .to(slides, { opacity: 0, duration: 0.5, ease: 'power1.inOut' }, 0)
+          .to(wordmark, { '--rev': 1, y: 0, duration: 1, ease: 'power2.out' }, 0.35)
+          .to(lines, { '--rev': 1, y: 0, duration: 0.9, stagger: 0.2, ease: 'power2.out' }, 1.0)
+          .to(late, { '--rev': 1, duration: 1, ease: 'power1.out' }, 1.9)
+          .to(dust, { '--rev': 1, duration: 1.2 }, 2.4)
+          .call(() => fly(true), [], 2.9)
+      }
+      const go = (next: number, immediate = false) => {
+        const prev = state
+        state = next
+        if (immediate) {
+          landingTl?.kill()
+          gsap.killTweensOf([...slides, ...landing])
+          gsap.set(slides, { opacity: 0, y: 0 })
+          if (next < 3) {
+            fly(false)
+            gsap.set(landing, { '--rev': 0 })
+            gsap.set(slides[next], { opacity: 1 })
+          } else {
+            gsap.set(landing, { '--rev': 1, y: 0 })
+            fly(true)
+          }
+          return
+        }
+        if (prev === 3 && next < 3) hideLanding(0.5)
+        // Cross-dissolve: the old slide fades out while the new one fades up into the same place.
+        slides.forEach((el, i) => {
+          if (i === next) {
+            gsap.fromTo(
+              el,
+              { opacity: 0, y: 14 },
+              { opacity: 1, y: 0, duration: 0.6, delay: prev === -1 ? 0.5 : 0.2, ease: 'power2.out', overwrite: 'auto' },
+            )
+          } else if (i === prev) {
+            gsap.to(el, { opacity: 0, duration: 0.45, ease: 'power1.inOut', overwrite: 'auto' })
+          }
         })
+        if (next === 3) showLanding()
+      }
+      // Which state a scroll position (in timeline units) belongs to.
+      const stateAt = (u: number) => (u >= REVEAL ? 3 : Math.min(2, Math.floor(u / SLIDE)))
+
+      if (window.scrollY < 8) {
+        // First visit at the top: the sky fades in over 0.6 s, then slide 1 rises into place.
+        gsap.to(heroFilm, { '--rev': 1, duration: 0.6, ease: 'power1.out' })
+        go(0)
       }
 
       const heroP = { p: 0 }
+      const outP = { v: 1 } // 1 = landing text in place, 0 = lifted away; the hero's CSS reads it as --out
       const stP = { p: 0 }
       let pastHero = false
 
@@ -99,7 +184,11 @@ export function Opening() {
           anticipatePin: 1,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
-            const past = self.progress * (HERO_END + 3.1 * K) >= HERO_END
+            const u = self.progress * (HERO_END + 3.1 * K)
+            const want = stateAt(u)
+            if (state === -1) go(want, true) // opened part-way down the page: show that state at once
+            else if (want !== state) go(want)
+            const past = u >= HERO_END
             if (past !== pastHero) {
               pastHero = past
               window.dispatchEvent(new CustomEvent('fm:pasthero', { detail: past }))
@@ -110,27 +199,35 @@ export function Opening() {
 
       pinTrigger = tl.scrollTrigger
 
-      // ---- Chapter 01 ----
+      // ---- Chapter 01 (after the slides and the landing reveal) ----
       tl.set(statement, { opacity: 0 }, 0)
-        .to('[data-hero-fade]', { opacity: 0, y: -24, duration: 0.5, stagger: 0.05 }, 0.1)
-        .to(letters, { yPercent: -45, opacity: 0, duration: 0.7, stagger: 0.025 }, 0.25)
+        // The landing text lifts away (through --out, see the CSS) as the airliner climbs.
+        .to(outP, { v: 0, duration: 0.8, onUpdate: () => hero.style.setProperty('--out', String(outP.v)) }, LEAVE)
+        .to(letters, { yPercent: -45, opacity: 0, duration: 0.7, stagger: 0.025 }, LEAVE + 0.15)
         // The dark tint that keeps the white text readable clears as the text leaves.
-        .to('[data-hero-scrim]', { opacity: 0, duration: 1 }, 0.2)
-        // The film plays as you scroll: the airliner climbs away and the sky turns golden.
-        .to(heroP, { p: 1, duration: 2.4, onUpdate: () => heroVideo.current?.seek(heroP.p) }, 0.2)
+        .to('[data-hero-scrim]', { opacity: 0, duration: 1 }, LEAVE)
+        // Only now does the airliner fly: the film plays as you scroll and the sky turns golden. Until here the
+        // film is held on its first frame.
+        .to(heroP, { p: 1, duration: 2.4, onUpdate: () => heroVideo.current?.seek(heroP.p) }, PLANE)
         // Close into the window frame; the page is black around it.
-        .fromTo(heroFilm, { clipPath: FULL }, { clipPath: windowClip, duration: 0.8, ease: 'power2.inOut' }, 2.6)
+        .fromTo(heroFilm, { clipPath: FULL }, { clipPath: windowClip, duration: 0.8, ease: 'power2.inOut' }, WINDOW)
 
       // ---- Handover: chapter 02 starts in the same frame ----
+      // The slide's buttons and form can only be reached while the slide is showing: hidden, so they are out of the
+      // tab order, before and after; the layer itself ignores the pointer, so they take it back.
       tl.set(statement, { opacity: 1 }, HERO_END)
         .set(hero, { autoAlpha: 0 }, HERO_END)
+        .set('[data-st-ui]', { visibility: 'visible', pointerEvents: 'auto' }, HERO_END)
 
       // ---- Chapter 02 ----
       tl.fromTo(stFilm, { clipPath: windowClip }, { clipPath: FULL, duration: 1 * K, ease: 'power2.inOut' }, st(0.9))
         .to(stP, { p: 1, duration: 3 * K, onUpdate: () => stVideo.current?.seek(stP.p) }, st(0))
         .fromTo('[data-w]', { opacity: 0.15 }, { opacity: 1, duration: 0.14 * K, stagger: 0.05 * K }, st(0.1))
         .to('[data-scrim]', { opacity: 1, duration: 0.8 * K }, st(0.9))
+        // The supporting copy, buttons and card rise in one after another once the headline has lit up.
+        .fromTo('[data-st-rise]', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.32 * K, stagger: 0.09 * K, ease: 'power2.out' }, st(0.55))
         .to('[data-st-text]', { opacity: 0, duration: 0.3 * K }, st(2.45))
+        .set('[data-st-ui]', { visibility: 'hidden', pointerEvents: 'none' }, st(2.75))
         .to('[data-dip]', { opacity: 1, duration: 0.5 * K }, st(2.6))
         .to({}, { duration: 0.1 }, st(3.1))
     }, stage)
@@ -139,6 +236,8 @@ export function Opening() {
     return () => {
       unregister()
       ctx.revert()
+      hero.style.removeProperty('--out')
+      delete hero.dataset.fly
       window.dispatchEvent(new CustomEvent('fm:pasthero', { detail: false }))
     }
   }, [active, pinFactor])
@@ -152,7 +251,7 @@ export function Opening() {
     >
       {/* Without JavaScript the two chapters simply stack as normal sections. */}
       <noscript>
-        <style>{`.stage{height:auto!important}.stage-layer{position:relative!important;opacity:1!important;visibility:visible!important}`}</style>
+        <style>{`.stage{height:auto!important}.stage-layer{position:relative!important;opacity:1!important;visibility:visible!important}[data-intro]{opacity:1!important}`}</style>
       </noscript>
 
       {/* Spec 7.2: H1 for SEO and screen readers while the wordmark is the visible title. It sits outside the
@@ -172,12 +271,20 @@ export function Opening() {
         }}
       >
         {/* The sky film fills the whole screen from the first frame. Without motion it is the still first frame. */}
-        <div ref={heroFilmRef} data-hero-film aria-hidden="true" className="absolute inset-0 z-0" style={{ pointerEvents: 'none' }}>
-          <ScrubVideo ref={heroVideo} mediaKey="hero" poster="start" />
+        <div ref={heroFilmRef} data-hero-film data-intro aria-hidden="true" className="absolute inset-0 z-0" style={{ pointerEvents: 'none' }}>
+          <div className="hero-drift">
+            <ScrubVideo ref={heroVideo} mediaKey="hero" poster="start" />
+          </div>
         </div>
         <div data-hero-scrim aria-hidden="true" className="hero-scrim" />
+        {/* Very faint gold dust, drawn with CSS so it also runs on phones and costs no scripting. */}
+        <div data-hero-fade data-dust data-intro aria-hidden="true" className="hero-dust">
+          {DUST.map((d, i) => (
+            <i key={i} style={d} />
+          ))}
+        </div>
 
-        <nav data-hero-fade aria-label="Page sections" className="hero-nav">
+        <nav data-hero-fade data-hero-late data-intro aria-label="Page sections" className="hero-nav">
           <a href="#services">Explore</a>
           <a href="#approach">Approach</a>
           <a href="#contact">Contact</a>
@@ -188,18 +295,31 @@ export function Opening() {
           <div className="hero-wordmark">
             {/* The logo is one image shown as 13 pieces (the kite, then each letter with the strip below it), so the
                 pieces can rise and lift away one by one like the old text wordmark did. */}
-            <div data-wordmark role="img" aria-label={`${site.brand} Travel Management LLP`} className="hero-logo">
+            <div data-wordmark data-intro role="img" aria-label={`${site.brand} Travel Management LLP`} className="hero-logo">
               {LOGO_PIECES.map((p) => (
                 <span key={p.key} data-letter className="hero-logo-piece" style={{ clipPath: p.clipPath }} />
               ))}
             </div>
           </div>
-          <p data-hero-fade className="hero-tagline">
-            {site.tagline}
-          </p>
+          <div className="hero-msg">
+            {/* The three text slides share one spot with the final headline, over the still sky. */}
+            {site.heroSlides.map((text) => (
+              <p key={text} data-slide className="hero-tagline hero-slide">
+                <WithMarkers text={text} />
+              </p>
+            ))}
+            <p data-hero-fade className="hero-tagline">
+              {/* Two lines, revealed one after the other. The text is the approved tagline, split at the same point. */}
+              {TAGLINE.map((line) => (
+                <span key={line} data-line data-intro className="hero-line">
+                  {line}
+                </span>
+              ))}
+            </p>
+          </div>
         </div>
 
-        <div data-hero-fade className="hero-cta">
+        <div data-hero-fade data-hero-late data-intro className="hero-cta">
           <a href="#services" className="pill pill--glass">
             {site.cta.services}
           </a>
@@ -207,6 +327,10 @@ export function Opening() {
             {site.cta.memberLogin}
           </a>
         </div>
+
+        <p data-hero-fade data-hero-late data-intro className="hero-chapter t-label" aria-hidden="true">
+          Chapter 01 / 09 <span>Takeoff</span>
+        </p>
       </section>
 
       {/* ---------------------------------------------------------------- 02 Statement */}
@@ -232,21 +356,48 @@ export function Opening() {
           />
         </div>
 
-        <div
-          data-st-text
-          className="relative z-10 grid gap-5 md:max-w-[36vw]"
-          style={{ paddingTop: 'calc(var(--hud-top) + 8px)' }}
-        >
-          <p className="t-label m-0" style={{ color: 'var(--on-black-78)' }}>
-            ( Who we are )
-          </p>
-          <p className="t-statement m-0">
-            {words.map((w, i) => (
-              <span key={i} data-w className="inline-block" style={{ marginRight: '0.28em' }}>
-                {w}
-              </span>
-            ))}
-          </p>
+        <div className="st-layout">
+          <div data-st-text className="st-top">
+            <p className="t-label m-0" style={{ color: 'var(--on-black-78)' }}>
+              ( Who we are )
+            </p>
+            <p className="t-statement st-statement m-0">
+              {words.map((w, i) => (
+                <span key={i} data-w className="inline-block" style={{ marginRight: '0.28em' }}>
+                  {w}
+                </span>
+              ))}
+            </p>
+            <p data-st-rise className="st-intro t-body m-0">
+              {site.consult.intro}
+            </p>
+            <p data-st-rise data-st-ui className="st-actions m-0">
+              <a href="#contact" className="pill pill--gold">
+                {site.cta.quote}
+              </a>
+              <a href={site.contact.whatsapp} className="pill pill--outline">
+                {site.cta.whatsapp}
+              </a>
+            </p>
+            <ul data-st-rise className="st-ticks m-0">
+              {site.consult.ticks.map((tick) => (
+                <li key={tick}>{tick}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div data-st-text data-st-ui className="st-bottom">
+            <CallbackCard />
+            <div data-st-rise className="cb-panel">
+              <p className="t-label m-0">{site.consult.panelTitle}</p>
+              <a href={site.contact.phoneHref} className="cb-phone">
+                {site.contact.phoneDisplay}
+              </a>
+              <p className="cb-hours m-0">
+                {site.contact.hours[0]} ({site.contact.tz})
+              </p>
+            </div>
+          </div>
         </div>
 
         <div
