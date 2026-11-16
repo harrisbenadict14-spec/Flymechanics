@@ -1,6 +1,5 @@
-import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react'
 import { site } from '~/content/site.content'
-import { scrollToId } from '~/lib/scroll-fx'
 import { OwnerConfirm, WithMarkers } from '~/components/ui/OwnerConfirm'
 import { QuoteForm } from '~/components/ui/QuoteForm'
 
@@ -29,7 +28,6 @@ function Words({ text }: { text: string }) {
   )
 }
 
-const SUBNAV = site.home.nav.filter((item) => item.href !== '/#contact')
 const emergencyFaq = site.faq.find((f) => f.q.toLowerCase().includes('office hours'))
 
 // ------------------------------------------------------------------------------------------------ page motion
@@ -109,96 +107,6 @@ export function Hero() {
         </p>
       </div>
     </section>
-  )
-}
-
-// ------------------------------------------------------------------------------------------------ sub-navigation
-/**
- * The pill of in-page links. It overlaps the bottom of the hero, then sticks to the top of the screen; once stuck a
- * small brand mark and the main action appear beside it, and the link for the section on screen is highlighted.
- * On phones the pill becomes a section picker.
- */
-export function SubNav() {
-  const sentinel = useRef<HTMLDivElement>(null)
-  const [stuck, setStuck] = useState(false)
-  const [current, setCurrent] = useState('')
-
-  useEffect(() => {
-    const el = sentinel.current
-    if (!el || !('IntersectionObserver' in window)) return
-    // Stuck once the end of the hero has passed the line the pill rides on (78 px from the top).
-    const stick = new IntersectionObserver(
-      ([entry]) => setStuck(!entry.isIntersecting && entry.boundingClientRect.top < 120),
-      { rootMargin: '-79px 0px 0px 0px' },
-    )
-    stick.observe(el)
-
-    // The section crossing the middle of the screen is the current one.
-    // Sections without a link of their own (the hero, support, contact) clear the highlight.
-    const linked = SUBNAV.map((item) => item.href.slice(2))
-    const ids = ['top', ...linked, 'support', 'contact']
-    const spy = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) setCurrent(linked.includes(entry.target.id) ? entry.target.id : '')
-        }
-      },
-      { rootMargin: '-45% 0px -50% 0px' },
-    )
-    ids.forEach((id) => {
-      const section = document.getElementById(id)
-      if (section) spy.observe(section)
-    })
-    return () => {
-      stick.disconnect()
-      spy.disconnect()
-    }
-  }, [])
-
-  return (
-    <>
-      <div ref={sentinel} aria-hidden="true" />
-      <div className="subnav" data-stuck={stuck}>
-        <div className="subnav-bar">
-          <div className="subnav-side subnav-side--l">
-            <a href="#top" className="subnav-brand" aria-label="Back to top" tabIndex={stuck ? 0 : -1}>
-              <img src="/logo-light.webp" alt="" width={900} height={275} />
-            </a>
-          </div>
-
-          <nav className="subnav-pill" aria-label="On this page">
-            {SUBNAV.map((item) => (
-              <a key={item.href} href={item.href.slice(1)} aria-current={current === item.href.slice(2) ? 'true' : undefined}>
-                {item.label}
-              </a>
-            ))}
-          </nav>
-
-          <div className="subnav-select">
-            <select
-              aria-label="Jump to a section"
-              value={current}
-              onChange={(e) => scrollToId(e.target.value)}
-            >
-              <option value="" disabled>
-                Explore
-              </option>
-              {SUBNAV.map((item) => (
-                <option key={item.href} value={item.href.slice(2)}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="subnav-side subnav-side--r">
-            <a href="#contact" className="btn btn--gold btn--sm" tabIndex={stuck ? 0 : -1}>
-              {site.cta.quote}
-            </a>
-          </div>
-        </div>
-      </div>
-    </>
   )
 }
 

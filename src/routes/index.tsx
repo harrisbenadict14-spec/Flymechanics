@@ -9,7 +9,6 @@ import {
   HowBand,
   MobileCta,
   ServicesBand,
-  SubNav,
   SupportCards,
   usePageReveal,
 } from '~/components/site/sections'
@@ -84,7 +83,6 @@ function Home() {
   return (
     <>
       <Hero />
-      <SubNav />
       <ServicesBand />
       <ApproachBand />
       <HowBand />

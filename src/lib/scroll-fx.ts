@@ -8,7 +8,7 @@ import { useEffect } from 'react'
  * Both do nothing when the visitor prefers reduced motion, and the page is complete without them.
  */
 
-// In-page targets stop below the sticky sub-navigation: Lenis reads `scroll-padding-top` (88px, in site.css) itself.
+// In-page links: Lenis reads `scroll-padding-top` (in site.css) itself, so targets stop where the stylesheet says.
 
 interface LenisLike {
   scrollTo(target: number | string | HTMLElement, options?: { offset?: number; immediate?: boolean }): void
@@ -20,14 +20,6 @@ interface LenisLike {
 let lenis: LenisLike | null = null
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-/** Scrolls to an element by id, smoothly when smooth scrolling is on. */
-export function scrollToId(id: string) {
-  const el = document.getElementById(id)
-  if (!el) return
-  if (lenis) lenis.scrollTo(el)
-  else el.scrollIntoView()
-}
 
 /** Pauses or resumes page scrolling (used while the full-screen menu is open). */
 export function setScrollLock(locked: boolean) {
