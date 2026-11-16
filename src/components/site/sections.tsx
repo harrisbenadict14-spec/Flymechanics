@@ -41,24 +41,19 @@ export function usePageReveal() {
 export function Hero() {
   return (
     <section className="hero" id="top" data-hero>
-      <img
-        className="hero-bg"
-        src="/media/hero-film-poster.webp"
-        alt=""
-        width={1600}
-        height={900}
-        fetchPriority="high"
-        decoding="async"
-      />
+      <picture>
+        <source media="(max-width: 820px)" srcSet="/img/hero-m.webp" />
+        <img className="hero-bg" src="/img/hero.webp" alt="" width={1920} height={1080} fetchPriority="high" decoding="async" />
+      </picture>
 
       <figure className="hero-float hero-float--a" aria-hidden="true">
-        <img src="/media/still-life-poster.webp" alt="" width={1600} height={900} loading="lazy" />
+        <img src="/img/float-1.webp" alt="" width={800} height={600} loading="lazy" />
       </figure>
       <figure className="hero-float hero-float--b" aria-hidden="true">
-        <img src="/media/statement-window-poster.webp" alt="" width={1600} height={900} loading="lazy" />
+        <img src="/img/float-2.webp" alt="" width={800} height={600} loading="lazy" />
       </figure>
       <figure className="hero-float hero-float--c" aria-hidden="true">
-        <img src="/media/scramble-film-poster.webp" alt="" width={1600} height={900} loading="lazy" />
+        <img src="/img/float-3.webp" alt="" width={800} height={600} loading="lazy" />
       </figure>
       <div className="hero-float hero-ui" aria-hidden="true">
         <p>{site.home.modesLabel}</p>
@@ -212,7 +207,7 @@ interface CardProps {
 function Card({ i, id, tall, title, body, tags, img, children }: CardProps) {
   return (
     <article id={id} className={tall ? 'card card--tall' : 'card'} style={{ '--i': i } as CSSProperties} data-reveal>
-      <img className="card-media" src={img} alt="" width={1600} height={900} loading="lazy" decoding="async" />
+      <img className="card-media" src={img} alt="" width={1400} height={966} loading="lazy" decoding="async" />
       <div className="card-body">
         <h3 className="h-card">{title}</h3>
         {body && <p className="p-card">{body}</p>}
@@ -248,7 +243,7 @@ export function ServicesBand() {
         title={s.title}
         body={s.body}
         tags={s.tags}
-        img={`/media/s${s.n}-poster.webp`}
+        img={`/img/svc-${s.n}.webp`}
       >
         <ul className="card-list">
           {s.items.map((item) => (
@@ -276,14 +271,14 @@ export function ServicesBand() {
   )
 }
 
-const APPROACH_IMG = ['/media/s03-poster-end.webp', '/media/still-life-poster-end.webp', '/media/statement-window-poster-end.webp']
+const APPROACH_IMG = ['/img/approach-1.webp', '/img/approach-2.webp', '/img/approach-3.webp']
 
 /** Band 2: how Flymechanics works (data, experience, value) and its reach. */
 export function ApproachBand() {
   const a = site.approach
   const cols = a.columns.map((c, i) => <Card key={c.t} i={i} tall={i === 0} title={c.t} body={c.d} img={APPROACH_IMG[i]} />)
   const reach = (
-    <Card key="reach" i={3} tall title={site.navigator.title} body={site.navigator.body} img="/media/nav-2-poster.webp">
+    <Card key="reach" i={3} tall title={site.navigator.title} body={site.navigator.body} img="/img/reach.webp">
       <ul className="card-list">
         {site.modes.map((mode) => (
           <li key={mode}>{mode}</li>

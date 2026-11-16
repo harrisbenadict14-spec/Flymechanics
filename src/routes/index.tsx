@@ -65,7 +65,8 @@ export const Route = createFileRoute('/')({
     links: [
       { rel: 'canonical', href: SITE_URL },
       // The hero photo is the largest thing in the first paint: ask for it as early as possible.
-      { rel: 'preload', as: 'image', type: 'image/webp', href: '/media/hero-film-poster.webp', fetchPriority: 'high' },
+      { rel: 'preload', as: 'image', type: 'image/webp', href: '/img/hero.webp', media: '(min-width: 821px)', fetchPriority: 'high' },
+      { rel: 'preload', as: 'image', type: 'image/webp', href: '/img/hero-m.webp', media: '(max-width: 820px)', fetchPriority: 'high' },
     ],
     scripts: [organization, faqPage, ...services].map((d) => ({ type: 'application/ld+json', children: JSON.stringify(d) })),
   }),
