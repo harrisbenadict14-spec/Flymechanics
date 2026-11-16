@@ -155,18 +155,22 @@ h3 {
   padding: 0 20px;
 }
 
-/* ---- Scroll reveal: fade up once, when it enters the screen ---- */
+/* ---- Scroll reveal: fades up as it enters the screen, and back down as it leaves at the bottom (scrolling up).
+        The transition of the state being moved INTO is the one that plays: in is staggered, out is quick. ---- */
 .js [data-reveal] {
   opacity: 0;
   transform: translate3d(0, 26px, 0);
   transition:
-    opacity 0.7s var(--ease-out),
-    transform 0.7s var(--ease-out);
-  transition-delay: calc(var(--d, 0) * 80ms);
+    opacity 0.45s var(--ease-io),
+    transform 0.45s var(--ease-io);
 }
 .js [data-reveal].is-in {
   opacity: 1;
   transform: none;
+  transition:
+    opacity 0.7s var(--ease-out),
+    transform 0.7s var(--ease-out);
+  transition-delay: calc(var(--d, 0) * 80ms);
 }
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -1201,12 +1205,15 @@ html.lenis body {
   transition: none;
 }
 .js [data-reveal='words'] .w-i {
+  /* out (scrolling back up): all words drop away together, quickly */
   transform: translate3d(0, 112%, 0);
-  transition: transform 0.95s var(--ease-out);
-  transition-delay: calc(var(--d, 0) * 80ms + var(--i, 0) * 55ms);
+  transition: transform 0.5s var(--ease-io);
 }
 .js [data-reveal='words'].is-in .w-i {
+  /* in: one after another */
   transform: none;
+  transition: transform 0.95s var(--ease-out);
+  transition-delay: calc(var(--d, 0) * 80ms + var(--i, 0) * 55ms);
 }
 @media (prefers-reduced-motion: reduce) {
   .js [data-reveal='words'] .w-i {
@@ -1282,14 +1289,18 @@ html.lenis body {
     opacity: 0;
     transform: none;
     clip-path: inset(7% 3% 0 3% round 8px);
+    /* out (scrolling back up): the mask closes quickly */
     transition:
-      opacity 0.8s var(--ease-out),
-      clip-path 1.2s var(--ease-out);
-    transition-delay: calc(var(--d, 0) * 80ms);
+      opacity 0.45s var(--ease-io),
+      clip-path 0.7s var(--ease-io);
   }
   .js .card[data-reveal].is-in {
     opacity: 1;
     clip-path: inset(0 0 0 0 round 8px);
+    transition:
+      opacity 0.8s var(--ease-out),
+      clip-path 1.2s var(--ease-out);
+    transition-delay: calc(var(--d, 0) * 80ms);
   }
   .bento-col + .bento-col .card {
     --d: 2;
@@ -1299,16 +1310,20 @@ html.lenis body {
     top: -8%;
     height: 116%;
     translate: 0 calc((var(--p, 0.5) - 0.5) * -13%);
-    transition:
-      transform 1.2s var(--ease-out),
-      scale 1.6s var(--ease-out);
+    transition: transform 1.2s var(--ease-out);
     will-change: translate;
   }
   .js .card[data-reveal] .card-media {
     scale: 1.14;
+    transition:
+      transform 1.2s var(--ease-out),
+      scale 0.7s var(--ease-io);
   }
   .js .card[data-reveal].is-in .card-media {
     scale: 1;
+    transition:
+      transform 1.2s var(--ease-out),
+      scale 1.6s var(--ease-out);
   }
 
   /* ---- Steps: a gold rule fills along the top as each step crosses the screen ---- */

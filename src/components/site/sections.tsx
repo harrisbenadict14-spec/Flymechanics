@@ -34,8 +34,10 @@ const emergencyFaq = site.faq.find((f) => f.q.toLowerCase().includes('office hou
 
 // ------------------------------------------------------------------------------------------------ page motion
 /**
- * Fades each `[data-reveal]` element up once, when it scrolls into view. Everything is visible without scripts and
- * under reduced motion (the stylesheet handles both).
+ * Reveals each `[data-reveal]` element as it scrolls into view and plays the reveal backwards when it leaves through
+ * the bottom of the screen (scrolling up). An element that has gone off the top stays revealed, so it is already there
+ * when you scroll back to it. It reveals at 12% visible and un-reveals only when fully out of view, so it never flickers
+ * on the edge. Everything is visible without scripts and under reduced motion (the stylesheet handles both).
  */
 export function usePageReveal() {
   useEffect(() => {
@@ -47,12 +49,15 @@ export function usePageReveal() {
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue
-          entry.target.classList.add('is-in')
-          io.unobserve(entry.target)
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.12) {
+            entry.target.classList.add('is-in')
+          } else if (!entry.isIntersecting && entry.boundingClientRect.top > 0) {
+            // fully below the screen: it left through the bottom, so scrolling is going up
+            entry.target.classList.remove('is-in')
+          }
         }
       },
-      { threshold: 0.12, rootMargin: '0px 0px -6% 0px' },
+      { threshold: [0, 0.12], rootMargin: '0px 0px -6% 0px' },
     )
     els.forEach((el) => io.observe(el))
     return () => io.disconnect()
