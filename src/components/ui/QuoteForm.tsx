@@ -161,7 +161,7 @@ export function QuoteForm() {
         <p className="t-body m-0" style={{ color: 'var(--on-black-78)' }}>
           We have received your request and will be in touch.
         </p>
-        <button type="button" className="pill pill--outline" onClick={() => setStatus({ kind: 'idle' })}>
+        <button type="button" className="btn btn--ghost" onClick={() => setStatus({ kind: 'idle' })}>
           Send another request
         </button>
       </div>
@@ -295,7 +295,7 @@ export function QuoteForm() {
       {TURNSTILE_KEY && <div ref={turnstileRef} />}
 
       <div className="qf-actions">
-        <button type="submit" className="pill pill--gold" disabled={status.kind === 'sending'}>
+        <button type="submit" className="btn btn--gold" disabled={status.kind === 'sending'}>
           {status.kind === 'sending' ? 'Sending…' : `${site.cta.quote} →`}
         </button>
         <p className="m-0" role="status" aria-live="polite" style={{ fontSize: 14, color: status.kind === 'error' ? '#ffb4a8' : 'var(--on-black-78)' }}>

@@ -1,0 +1,504 @@
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { site } from '~/content/site.content'
+import { OwnerConfirm, WithMarkers } from '~/components/ui/OwnerConfirm'
+import { QuoteForm } from '~/components/ui/QuoteForm'
+
+/** Stagger helper for scroll reveals: the nth item waits n steps (see `[data-reveal]` in site.css). */
+const delay = (n: number) => ({ '--d': n }) as CSSProperties
+
+const SUBNAV = site.home.nav.filter((item) => item.href !== '/#contact')
+const emergencyFaq = site.faq.find((f) => f.q.toLowerCase().includes('office hours'))
+
+// ------------------------------------------------------------------------------------------------ page motion
+/**
+ * Fades each `[data-reveal]` element up once, when it scrolls into view. Everything is visible without scripts and
+ * under reduced motion (the stylesheet handles both).
+ */
+export function usePageReveal() {
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
+    if (!('IntersectionObserver' in window)) {
+      els.forEach((el) => el.classList.add('is-in'))
+      return
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          entry.target.classList.add('is-in')
+          io.unobserve(entry.target)
+        }
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -6% 0px' },
+    )
+    els.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [])
+}
+
+// ------------------------------------------------------------------------------------------------ hero
+/** Full-screen opening: the sky photo, a centred headline and action, and four floating cards at the edges. */
+export function Hero() {
+  return (
+    <section className="hero" id="top" data-hero>
+      <img
+        className="hero-bg"
+        src="/media/hero-film-poster.webp"
+        alt=""
+        width={1600}
+        height={900}
+        fetchPriority="high"
+        decoding="async"
+      />
+
+      <figure className="hero-float hero-float--a" aria-hidden="true">
+        <img src="/media/still-life-poster.webp" alt="" width={1600} height={900} loading="lazy" />
+      </figure>
+      <figure className="hero-float hero-float--b" aria-hidden="true">
+        <img src="/media/statement-window-poster.webp" alt="" width={1600} height={900} loading="lazy" />
+      </figure>
+      <figure className="hero-float hero-float--c" aria-hidden="true">
+        <img src="/media/scramble-film-poster.webp" alt="" width={1600} height={900} loading="lazy" />
+      </figure>
+      <div className="hero-float hero-ui" aria-hidden="true">
+        <p>{site.home.modesLabel}</p>
+        <ul>
+          {site.modes.map((mode) => (
+            <li key={mode}>{mode}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="hero-stack">
+        <p className="eyebrow" data-reveal>
+          {site.descriptor}
+        </p>
+        <h1 className="h-hero" data-reveal style={delay(1)}>
+          {site.tagline}
+        </h1>
+        <p className="hero-actions" data-reveal style={delay(2)}>
+          <a href="#contact" className="btn btn--gold">
+            {site.cta.quote}
+          </a>
+          <a href="#services" className="btn btn--ghost">
+            {site.cta.services}
+          </a>
+        </p>
+      </div>
+    </section>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ sub-navigation
+/**
+ * The pill of in-page links. It overlaps the bottom of the hero, then sticks to the top of the screen; once stuck a
+ * small brand mark and the main action appear beside it, and the link for the section on screen is highlighted.
+ * On phones the pill becomes a section picker.
+ */
+export function SubNav() {
+  const sentinel = useRef<HTMLDivElement>(null)
+  const [stuck, setStuck] = useState(false)
+  const [current, setCurrent] = useState('')
+
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || !('IntersectionObserver' in window)) return
+    // Stuck once the end of the hero has passed the line the pill rides on (78 px from the top).
+    const stick = new IntersectionObserver(
+      ([entry]) => setStuck(!entry.isIntersecting && entry.boundingClientRect.top < 120),
+      { rootMargin: '-79px 0px 0px 0px' },
+    )
+    stick.observe(el)
+
+    // The section crossing the middle of the screen is the current one.
+    // Sections without a link of their own (the hero, support, contact) clear the highlight.
+    const linked = SUBNAV.map((item) => item.href.slice(2))
+    const ids = ['top', ...linked, 'support', 'contact']
+    const spy = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) setCurrent(linked.includes(entry.target.id) ? entry.target.id : '')
+        }
+      },
+      { rootMargin: '-45% 0px -50% 0px' },
+    )
+    ids.forEach((id) => {
+      const section = document.getElementById(id)
+      if (section) spy.observe(section)
+    })
+    return () => {
+      stick.disconnect()
+      spy.disconnect()
+    }
+  }, [])
+
+  return (
+    <>
+      <div ref={sentinel} aria-hidden="true" />
+      <div className="subnav" data-stuck={stuck}>
+        <div className="subnav-bar">
+          <div className="subnav-side subnav-side--l">
+            <a href="#top" className="subnav-brand" aria-label="Back to top" tabIndex={stuck ? 0 : -1}>
+              <img src="/logo-light.webp" alt="" width={900} height={275} />
+            </a>
+          </div>
+
+          <nav className="subnav-pill" aria-label="On this page">
+            {SUBNAV.map((item) => (
+              <a key={item.href} href={item.href.slice(1)} aria-current={current === item.href.slice(2) ? 'true' : undefined}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="subnav-select">
+            <select
+              aria-label="Jump to a section"
+              value={current}
+              onChange={(e) => {
+                const target = document.getElementById(e.target.value)
+                if (target) target.scrollIntoView()
+              }}
+            >
+              <option value="" disabled>
+                Explore
+              </option>
+              {SUBNAV.map((item) => (
+                <option key={item.href} value={item.href.slice(2)}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="subnav-side subnav-side--r">
+            <a href="#contact" className="btn btn--gold btn--sm" tabIndex={stuck ? 0 : -1}>
+              {site.cta.quote}
+            </a>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ bands
+function SectionHead({ heading, text, children }: { heading: string; text?: string; children?: ReactNode }) {
+  return (
+    <div className="sec-head">
+      <h2 className="h-sec" data-reveal>
+        {heading}
+      </h2>
+      <div className="sec-head-side" data-reveal style={delay(1)}>
+        {text && <p className="p-lead">{text}</p>}
+        {children}
+      </div>
+    </div>
+  )
+}
+
+interface CardProps {
+  /** Reading order, used when the two columns collapse into one on phones. */
+  i: number
+  id?: string
+  tall?: boolean
+  title: string
+  body?: string
+  tags?: string
+  img: string
+  children?: ReactNode
+}
+
+function Card({ i, id, tall, title, body, tags, img, children }: CardProps) {
+  return (
+    <article id={id} className={tall ? 'card card--tall' : 'card'} style={{ '--i': i } as CSSProperties} data-reveal>
+      <img className="card-media" src={img} alt="" width={1600} height={900} loading="lazy" decoding="async" />
+      <div className="card-body">
+        <h3 className="h-card">{title}</h3>
+        {body && <p className="p-card">{body}</p>}
+        {tags && <p className="card-tags">{tags}</p>}
+      </div>
+      {children}
+    </article>
+  )
+}
+
+/** Two interlocking columns: tall and short cards alternate so the columns end level (blueprint 2.2 F). */
+function Bento({ left, right }: { left: ReactNode; right: ReactNode }) {
+  return (
+    <div className="bento">
+      <div className="bento-col">{left}</div>
+      <div className="bento-col">{right}</div>
+    </div>
+  )
+}
+
+/** Band 1: the six services. */
+export function ServicesBand() {
+  const cards = site.services.map((s, i) => {
+    const note = 'note' in s ? s.note : undefined
+    const partners = 'partners' in s ? s.partners : undefined
+    return (
+      <Card
+        key={s.n}
+        i={i}
+        id={`s${s.n}`}
+        // the first and last cards are the tall ones, so both columns come out the same height
+        tall={i === 0 || i === 5}
+        title={s.title}
+        body={s.body}
+        tags={s.tags}
+        img={`/media/s${s.n}-poster.webp`}
+      >
+        <ul className="card-list">
+          {s.items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+        {note && <p className="card-note">{note}</p>}
+        {partners && (
+          <p className="card-note">
+            <OwnerConfirm>{partners}</OwnerConfirm>
+          </p>
+        )}
+      </Card>
+    )
+  })
+  return (
+    <section className="band" id="services">
+      <SectionHead heading={site.statement} text={site.handle.line}>
+        <a href="#contact" className="btn btn--ghost">
+          {site.cta.quote}
+        </a>
+      </SectionHead>
+      <Bento left={[cards[0], cards[2], cards[4]]} right={[cards[1], cards[3], cards[5]]} />
+    </section>
+  )
+}
+
+const APPROACH_IMG = ['/media/s03-poster-end.webp', '/media/still-life-poster-end.webp', '/media/statement-window-poster-end.webp']
+
+/** Band 2: how Flymechanics works (data, experience, value) and its reach. */
+export function ApproachBand() {
+  const a = site.approach
+  const cols = a.columns.map((c, i) => <Card key={c.t} i={i} tall={i === 0} title={c.t} body={c.d} img={APPROACH_IMG[i]} />)
+  const reach = (
+    <Card key="reach" i={3} tall title={site.navigator.title} body={site.navigator.body} img="/media/nav-2-poster.webp">
+      <ul className="card-list">
+        {site.modes.map((mode) => (
+          <li key={mode}>{mode}</li>
+        ))}
+      </ul>
+    </Card>
+  )
+  return (
+    <section className="band" id="approach">
+      <SectionHead heading={a.statement}>
+        <a href="#contact" className="btn btn--ghost">
+          {site.cta.quote}
+        </a>
+      </SectionHead>
+      <Bento left={[cols[0], cols[1]]} right={[cols[2], reach]} />
+    </section>
+  )
+}
+
+/** Band 3: four numbered steps. */
+export function HowBand() {
+  const how = site.home.how
+  return (
+    <section className="band" id="how">
+      <SectionHead heading={how.heading} text={site.close.sub}>
+        <a href="#contact" className="btn btn--ghost">
+          {site.cta.quote}
+        </a>
+      </SectionHead>
+      <ol className="steps" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {how.steps.map((step, i) => (
+          <li key={step.title} className="step" data-reveal style={delay(i % 2)}>
+            <span className="step-n">Step {i + 1}</span>
+            <h3 className="h-card">{step.title}</h3>
+            <p className="p-card">{step.body}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ FAQ
+/** Heading on the left, questions on the right; any number can be open. */
+export function FaqSection() {
+  const uid = useId()
+  const [open, setOpen] = useState<Record<number, boolean>>({})
+  return (
+    <section className="faqs" id="faq">
+      <h2 className="h-sec" data-reveal>
+        {site.home.faqHeading}
+      </h2>
+      <div className="faqs-list" data-reveal style={delay(1)}>
+        {site.faq.map((item, i) => {
+          const isOpen = !!open[i]
+          return (
+            <div key={item.q} className="faq-item">
+              <h3>
+                <button
+                  type="button"
+                  className="faq-q"
+                  id={`${uid}-q${i}`}
+                  aria-expanded={isOpen}
+                  aria-controls={`${uid}-a${i}`}
+                  onClick={() => setOpen((o) => ({ ...o, [i]: !o[i] }))}
+                >
+                  <span>{item.q}</span>
+                  <span className="faq-icon" aria-hidden="true" />
+                </button>
+              </h3>
+              <div id={`${uid}-a${i}`} role="region" aria-labelledby={`${uid}-q${i}`} className="faq-a" data-open={isOpen}>
+                <div>
+                  <p>
+                    <WithMarkers text={item.a} />
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ support
+/** Two outlined cards: call and email. */
+export function SupportCards() {
+  const c = site.contact
+  const s = site.home.support
+  return (
+    <section className="support" id="support">
+      <h2 className="h-sec" data-reveal>
+        {s.heading}
+      </h2>
+      <div className="support-grid">
+        <a href={c.phoneHref} className="support-card" data-reveal>
+          <h3 className="h-card">{s.call}</h3>
+          <strong>{c.phoneDisplay}</strong>
+          <p>
+            {c.hours.slice(0, 2).join(' · ')} ({c.tz})
+          </p>
+          <span className="support-arrow" aria-hidden="true">
+            →
+          </span>
+        </a>
+        <a href={`mailto:${c.email}`} className="support-card" data-reveal style={delay(1)}>
+          <h3 className="h-card">{s.email}</h3>
+          <strong>{c.email}</strong>
+          <span className="support-arrow" aria-hidden="true">
+            →
+          </span>
+        </a>
+      </div>
+    </section>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ closing + form
+/** The closing call to action, the contact details and the quote form. */
+export function Closing() {
+  const c = site.contact
+  return (
+    <section className="closing" id="contact" data-closing>
+      <div className="closing-top">
+        <h2 className="h-hero" data-reveal>
+          {site.close.heading}
+        </h2>
+        <p className="p-lead" data-reveal style={delay(1)}>
+          {site.close.sub}
+        </p>
+        <p className="hero-actions" data-reveal style={delay(2)}>
+          <a href="#quote-form" className="btn btn--gold">
+            {site.cta.quote}
+          </a>
+          <a href={c.whatsapp} className="btn btn--ghost">
+            {site.cta.whatsapp}
+          </a>
+        </p>
+      </div>
+
+      <div className="closing-grid">
+        <dl className="details" data-reveal>
+          <div>
+            <dt>Phone</dt>
+            <dd>
+              <a href={c.phoneHref}>{c.phoneDisplay}</a>
+            </dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd>
+              <a href={`mailto:${c.email}`}>{c.email}</a>
+            </dd>
+          </div>
+          <div>
+            <dt>Hours</dt>
+            <dd>
+              {c.hours.map((h) => (
+                <span key={h}>{h}</span>
+              ))}
+              <span style={{ color: 'var(--text-muted)' }}>{c.tz}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Address</dt>
+            <dd>
+              <WithMarkers text={c.address} />
+            </dd>
+          </div>
+          {emergencyFaq && (
+            <div>
+              <dt>After hours</dt>
+              <dd>
+                <WithMarkers text={emergencyFaq.a} />
+              </dd>
+            </div>
+          )}
+        </dl>
+
+        <div className="form-card" data-reveal style={delay(1)}>
+          <QuoteForm />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------ phone action bar
+/** A fixed "Request a quote" button on phones: shown after the hero, hidden once the form is on screen. */
+export function MobileCta() {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    const hero = document.querySelector('[data-hero]')
+    const closing = document.querySelector('[data-closing]')
+    if (!hero || !closing || !('IntersectionObserver' in window)) return
+    let heroIn = true
+    let closingIn = false
+    const update = () => setShow(!heroIn && !closingIn)
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === hero) heroIn = entry.isIntersecting
+        else closingIn = entry.isIntersecting
+      }
+      update()
+    })
+    io.observe(hero)
+    io.observe(closing)
+    return () => io.disconnect()
+  }, [])
+  return (
+    <div className="mcta" data-show={show} {...(!show ? { inert: true } : {})}>
+      <a href="#contact" className="btn btn--gold">
+        {site.cta.quote}
+      </a>
+    </div>
+  )
+}

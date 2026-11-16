@@ -1,12 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { site } from '~/content/site.content'
-import { Opening } from '~/components/sections/Opening'
-import { HandleScramble } from '~/components/sections/HandleScramble'
-import { Navigator } from '~/components/sections/Navigator'
-import { Services } from '~/components/sections/Services'
-import { Approach } from '~/components/sections/Approach'
-import { Faq } from '~/components/sections/Faq'
-import { Contact } from '~/components/sections/Contact'
+import {
+  ApproachBand,
+  Closing,
+  FaqSection,
+  Hero,
+  HowBand,
+  MobileCta,
+  ServicesBand,
+  SubNav,
+  SupportCards,
+  usePageReveal,
+} from '~/components/site/sections'
 
 const SITE_URL = 'https://flymechanics.com'
 
@@ -59,25 +64,31 @@ export const Route = createFileRoute('/')({
     ],
     links: [
       { rel: 'canonical', href: SITE_URL },
-      // The logo is the largest thing in the first paint and is drawn from the stylesheet, so the browser would
-      // otherwise only find it after the CSS has loaded.
-      { rel: 'preload', as: 'image', type: 'image/webp', href: '/logo-hero.webp', fetchPriority: 'high' },
+      // The hero photo is the largest thing in the first paint: ask for it as early as possible.
+      { rel: 'preload', as: 'image', type: 'image/webp', href: '/media/hero-film-poster.webp', fetchPriority: 'high' },
     ],
     scripts: [organization, faqPage, ...services].map((d) => ({ type: 'application/ld+json', children: JSON.stringify(d) })),
   }),
   component: Home,
 })
 
+/**
+ * The landing page, in the order set by the template blueprint (docs/template-analysis): hero, sticky sub-navigation,
+ * three bands (services, approach, how it works), FAQ, support, and the closing band with the quote form.
+ */
 function Home() {
+  usePageReveal()
   return (
     <>
-      <Opening />
-      <HandleScramble />
-      <Navigator />
-      <Services />
-      <Approach />
-      <Faq />
-      <Contact />
+      <Hero />
+      <SubNav />
+      <ServicesBand />
+      <ApproachBand />
+      <HowBand />
+      <FaqSection />
+      <SupportCards />
+      <Closing />
+      <MobileCta />
     </>
   )
 }

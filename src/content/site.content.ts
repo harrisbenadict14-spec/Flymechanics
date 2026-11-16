@@ -1,5 +1,5 @@
-// Single content file. Copy is the owner's, from FLYMECHANICS_BUILD_SPEC.md section 6, verbatim.
-// Do not reword. Every owner-confirmation marker stays visible until the owner supplies verified information.
+// Single content file. Copy is the owner's, from FLYMECHANICS_BUILD_SPEC.md section 6, verbatim (the `home` block
+// below holds the few new labels). Do not reword. Every owner-confirmation marker stays visible until the owner supplies verified information.
 export const site = {
   brand: "Flymechanics",
   wordmark: "FLYMECHANICS.",
@@ -15,23 +15,32 @@ export const site = {
     memberLoginHref: "#",
   },
 
-  // The three text slides that play over the still sky before the landing page appears. Slides 1 and 2 reuse approved
-  // site copy until the owner supplies the final text; slide 3 is still to come.
-  heroSlides: [
-    "One team. Routes across the world.",
-    "A pro-active, hands-on approach with a clear focus on cost control.",
-    "[CONFIRM slide 3 text: still to be supplied]",
-  ],
-
-  // Slide 2 (the statement slide): supporting copy and the call-back card. New copy, for the owner to approve.
-  consult: {
-    intro: "Regional, domestic and international air and rail — planned, booked and supported from Chennai.",
-    ticks: ["Air, rail, ferry and car bookings", "Dedicated account manager", "Monthly, quarterly or annual MIS reports"],
-    cardTitle: "Tell us where you're headed",
-    fields: { name: "Full name", phone: "Mobile number", service: "Service", servicePlaceholder: "Choose a service" },
-    submit: "Request a call back",
-    note: "By sending this form you agree to be contacted about your enquiry by phone, email or WhatsApp.",
-    panelTitle: "Speak to us",
+  // Labels and assembled copy for the landing page. Service, approach, FAQ and contact text comes from the sections
+  // below. What is new here (navigation labels, the four steps, the support cards) is for the owner to approve; the
+  // steps are assembled from phrases already approved elsewhere on the site.
+  home: {
+    nav: [
+      { label: "Services", href: "/#services" },
+      { label: "Approach", href: "/#approach" },
+      { label: "How it works", href: "/#how" },
+      { label: "FAQ", href: "/#faq" },
+      { label: "Contact", href: "/#contact" },
+    ],
+    login: "Login",
+    modesLabel: "Travel modes",
+    how: {
+      heading: "How it works",
+      steps: [
+        { title: "Tell us what you need", body: "Send a quote request with your company's travel needs, or reach out directly." },
+        { title: "Receive a customised proposal", body: "We prepare a customised proposal for your company." },
+        { title: "Travel with one point of contact", body: "A dedicated account manager, and one point of contact for everything." },
+        { title: "Stay in control of spend", body: "Clear invoicing and fare-savings reports, monthly, quarterly or annually." },
+      ],
+    },
+    faqHeading: "Frequently asked questions",
+    support: { heading: "Speak to us", call: "Call us", email: "Email us" },
+    footerTagline: "Time flies.",
+    footerGroups: { services: "Services", company: "Company", contact: "Contact", legal: "Legal" },
   },
 
   statement: "We source the best method of transport and fares — so your people just travel.",
