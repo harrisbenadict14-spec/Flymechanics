@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { site } from '~/content/site.content'
+import { useScrollFx } from '~/lib/scroll-fx'
 import {
   ApproachBand,
   Closing,
@@ -79,6 +80,7 @@ export const Route = createFileRoute('/')({
  */
 function Home() {
   usePageReveal()
+  useScrollFx()
   return (
     <>
       <Hero />

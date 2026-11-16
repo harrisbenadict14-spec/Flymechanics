@@ -7,6 +7,7 @@ import appCss from '~/styles/app.css?url'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
 import jakartaLatin from '@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2?url'
 import { site } from '~/content/site.content'
+import { useSmoothScroll } from '~/lib/scroll-fx'
 import { SiteHeader } from '~/components/site/SiteHeader'
 import { SiteFooter } from '~/components/site/SiteFooter'
 import { ErrorPage, NotFoundPage } from '~/components/ui/StatusPage'
@@ -59,6 +60,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 function RootComponent() {
   // The header lies over the hero on the home page only; elsewhere it is a solid bar above the content.
   const isHome = useRouterState({ select: (s) => s.location.pathname === '/' })
+  useSmoothScroll()
   return (
     <>
       <nav aria-label="Skip links">

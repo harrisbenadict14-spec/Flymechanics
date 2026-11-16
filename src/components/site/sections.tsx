@@ -1,10 +1,33 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { site } from '~/content/site.content'
+import { scrollToId } from '~/lib/scroll-fx'
 import { OwnerConfirm, WithMarkers } from '~/components/ui/OwnerConfirm'
 import { QuoteForm } from '~/components/ui/QuoteForm'
 
 /** Stagger helper for scroll reveals: the nth item waits n steps (see `[data-reveal]` in site.css). */
 const delay = (n: number) => ({ '--d': n }) as CSSProperties
+
+/**
+ * A heading whose words rise out of a mask one after another. Put `data-reveal="words"` on the heading: the reveal
+ * observer adds `.is-in` when it scrolls into view. The words stay ordinary text, separated by spaces.
+ */
+function Words({ text }: { text: string }) {
+  const words = text.split(' ')
+  return (
+    <>
+      {words.map((word, i) => (
+        <Fragment key={i}>
+          <span className="w">
+            <span className="w-i" style={{ '--i': i } as CSSProperties}>
+              {word}
+            </span>
+          </span>
+          {i < words.length - 1 ? ' ' : null}
+        </Fragment>
+      ))}
+    </>
+  )
+}
 
 const SUBNAV = site.home.nav.filter((item) => item.href !== '/#contact')
 const emergencyFaq = site.faq.find((f) => f.q.toLowerCase().includes('office hours'))
@@ -40,7 +63,7 @@ export function usePageReveal() {
 /** Full-screen opening: the sky photo, a centred headline and action, and four floating cards at the edges. */
 export function Hero() {
   return (
-    <section className="hero" id="top" data-hero>
+    <section className="hero" id="top" data-hero data-fx="hero">
       <picture>
         <source media="(max-width: 820px)" srcSet="/img/hero-m.webp" />
         <img className="hero-bg" src="/img/hero.webp" alt="" width={1920} height={1080} fetchPriority="high" decoding="async" />
@@ -68,8 +91,8 @@ export function Hero() {
         <p className="eyebrow" data-reveal>
           {site.descriptor}
         </p>
-        <h1 className="h-hero" data-reveal style={delay(1)}>
-          {site.tagline}
+        <h1 className="h-hero" data-reveal="words" style={delay(1)}>
+          <Words text={site.tagline} />
         </h1>
         <p className="hero-actions" data-reveal style={delay(2)}>
           <a href="#contact" className="btn btn--gold">
@@ -150,10 +173,7 @@ export function SubNav() {
             <select
               aria-label="Jump to a section"
               value={current}
-              onChange={(e) => {
-                const target = document.getElementById(e.target.value)
-                if (target) target.scrollIntoView()
-              }}
+              onChange={(e) => scrollToId(e.target.value)}
             >
               <option value="" disabled>
                 Explore
@@ -181,8 +201,8 @@ export function SubNav() {
 function SectionHead({ heading, text, children }: { heading: string; text?: string; children?: ReactNode }) {
   return (
     <div className="sec-head">
-      <h2 className="h-sec" data-reveal>
-        {heading}
+      <h2 className="h-sec" data-reveal="words">
+        <Words text={heading} />
       </h2>
       <div className="sec-head-side" data-reveal style={delay(1)}>
         {text && <p className="p-lead">{text}</p>}
@@ -206,7 +226,7 @@ interface CardProps {
 
 function Card({ i, id, tall, title, body, tags, img, children }: CardProps) {
   return (
-    <article id={id} className={tall ? 'card card--tall' : 'card'} style={{ '--i': i } as CSSProperties} data-reveal>
+    <article id={id} className={tall ? 'card card--tall' : 'card'} style={{ '--i': i } as CSSProperties} data-reveal data-fx="view">
       <img className="card-media" src={img} alt="" width={1400} height={966} loading="lazy" decoding="async" />
       <div className="card-body">
         <h3 className="h-card">{title}</h3>
@@ -310,7 +330,7 @@ export function HowBand() {
       </SectionHead>
       <ol className="steps" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {how.steps.map((step, i) => (
-          <li key={step.title} className="step" data-reveal style={delay(i % 2)}>
+          <li key={step.title} className="step" data-reveal data-fx="view" style={delay(i % 2)}>
             <span className="step-n">Step {i + 1}</span>
             <h3 className="h-card">{step.title}</h3>
             <p className="p-card">{step.body}</p>
@@ -328,14 +348,14 @@ export function FaqSection() {
   const [open, setOpen] = useState<Record<number, boolean>>({})
   return (
     <section className="faqs" id="faq">
-      <h2 className="h-sec" data-reveal>
-        {site.home.faqHeading}
+      <h2 className="h-sec" data-reveal="words">
+        <Words text={site.home.faqHeading} />
       </h2>
-      <div className="faqs-list" data-reveal style={delay(1)}>
+      <div className="faqs-list">
         {site.faq.map((item, i) => {
           const isOpen = !!open[i]
           return (
-            <div key={item.q} className="faq-item">
+            <div key={item.q} className="faq-item" data-reveal style={delay(i)}>
               <h3>
                 <button
                   type="button"
@@ -371,8 +391,8 @@ export function SupportCards() {
   const s = site.home.support
   return (
     <section className="support" id="support">
-      <h2 className="h-sec" data-reveal>
-        {s.heading}
+      <h2 className="h-sec" data-reveal="words">
+        <Words text={s.heading} />
       </h2>
       <div className="support-grid">
         <a href={c.phoneHref} className="support-card" data-reveal>
@@ -403,9 +423,9 @@ export function Closing() {
   const c = site.contact
   return (
     <section className="closing" id="contact" data-closing>
-      <div className="closing-top">
-        <h2 className="h-hero" data-reveal>
-          {site.close.heading}
+      <div className="closing-top" data-fx="view">
+        <h2 className="h-hero" data-reveal="words">
+          <Words text={site.close.heading} />
         </h2>
         <p className="p-lead" data-reveal style={delay(1)}>
           {site.close.sub}

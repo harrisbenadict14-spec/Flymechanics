@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { site } from '~/content/site.content'
+import { setScrollLock } from '~/lib/scroll-fx'
 
 /**
  * Site header. On the home page it sits over the hero and scrolls away with it (the sticky sub-navigation takes over
@@ -16,6 +17,7 @@ export function SiteHeader({ overlay }: { overlay: boolean }) {
     if (!open) return
     const previous = document.documentElement.style.overflow
     document.documentElement.style.overflow = 'hidden'
+    setScrollLock(true)
     closeRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
@@ -24,6 +26,7 @@ export function SiteHeader({ overlay }: { overlay: boolean }) {
     const burger = burgerRef.current
     return () => {
       document.documentElement.style.overflow = previous
+      setScrollLock(false)
       document.removeEventListener('keydown', onKey)
       burger?.focus()
     }

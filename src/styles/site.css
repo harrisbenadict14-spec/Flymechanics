@@ -1163,3 +1163,173 @@ h3 {
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   }
 }
+
+/* ======================================================================================================================
+   Scroll motion
+   Words rise out of a mask; the hero, card pictures and step rules follow the scroll position through `--p` (0-1), which
+   src/lib/scroll-fx.ts writes on every `[data-fx]` element near the screen. Everything is plain static content without
+   scripts, and the movement rules sit in `prefers-reduced-motion: no-preference` so reduced-motion visitors get none.
+   ====================================================================================================================== */
+
+/* Smooth scrolling (Lenis adds the `lenis` classes to <html>) */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* Headline words: each rises out of its own mask, one after another */
+.w {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  /* room for descenders inside the mask without changing the line height */
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+.w-i {
+  display: inline-block;
+}
+.js [data-reveal='words'] {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+.js [data-reveal='words'] .w-i {
+  transform: translate3d(0, 112%, 0);
+  transition: transform 0.95s var(--ease-out);
+  transition-delay: calc(var(--d, 0) * 80ms + var(--i, 0) * 55ms);
+}
+.js [data-reveal='words'].is-in .w-i {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveal='words'] .w-i {
+    transform: none;
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* ---- Hero ---- */
+  .hero-bg {
+    /* `scale` settles on load, `transform` follows the scroll: they combine */
+    animation: hero-settle 1.9s var(--ease-out) both;
+    transform: translate3d(0, calc(var(--p, 0) * 7%), 0) scale(calc(1 + var(--p, 0) * 0.16));
+    will-change: transform;
+  }
+  @keyframes hero-settle {
+    from {
+      scale: 1.1;
+    }
+    to {
+      scale: 1;
+    }
+  }
+  .hero::before {
+    /* the picture sinks into the page colour as the hero scrolls away */
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--surface-1);
+    opacity: calc(var(--p, 0) * 0.7);
+    pointer-events: none;
+  }
+  .hero-stack {
+    transform: translate3d(0, calc(var(--p, 0) * -90px), 0);
+    opacity: calc(1 - var(--p, 0) * 1.5);
+    will-change: transform, opacity;
+  }
+  .hero-float {
+    animation: float-in 1.3s var(--ease-out) both;
+    will-change: transform;
+  }
+  .hero-float--a {
+    animation-delay: 0.5s;
+    transform: translate3d(0, calc(var(--p, 0) * -130px), 0);
+  }
+  .hero-float--b {
+    animation-delay: 0.65s;
+    transform: translate3d(0, calc(var(--p, 0) * -220px), 0);
+  }
+  .hero-float--c {
+    animation-delay: 0.8s;
+    transform: translate3d(0, calc(var(--p, 0) * -90px), 0);
+  }
+  .hero-ui {
+    animation-delay: 0.95s;
+    transform: translate3d(0, calc(var(--p, 0) * -160px), 0);
+  }
+  @keyframes float-in {
+    from {
+      opacity: 0;
+      translate: 0 40px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+
+  /* ---- Cards: a masked reveal, a picture that settles, and a picture that drifts inside the frame ---- */
+  .js .card[data-reveal] {
+    opacity: 0;
+    transform: none;
+    clip-path: inset(7% 3% 0 3% round 8px);
+    transition:
+      opacity 0.8s var(--ease-out),
+      clip-path 1.2s var(--ease-out);
+    transition-delay: calc(var(--d, 0) * 80ms);
+  }
+  .js .card[data-reveal].is-in {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 8px);
+  }
+  .bento-col + .bento-col .card {
+    --d: 2;
+  }
+  .card-media {
+    /* taller than the card so there is picture to drift through */
+    top: -8%;
+    height: 116%;
+    translate: 0 calc((var(--p, 0.5) - 0.5) * -13%);
+    transition:
+      transform 1.2s var(--ease-out),
+      scale 1.6s var(--ease-out);
+    will-change: translate;
+  }
+  .js .card[data-reveal] .card-media {
+    scale: 1.14;
+  }
+  .js .card[data-reveal].is-in .card-media {
+    scale: 1;
+  }
+
+  /* ---- Steps: a gold rule fills along the top as each step crosses the screen ---- */
+  .step {
+    position: relative;
+    overflow: hidden;
+  }
+  .step::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--gold);
+    transform-origin: left center;
+    transform: scaleX(clamp(0, calc((var(--p, 1) - 0.28) * 2.4), 1));
+  }
+
+  /* ---- Closing headline eases up to full size as it arrives ---- */
+  .closing-top .h-hero {
+    scale: clamp(0.94, calc(0.94 + var(--p, 1) * 0.2), 1);
+  }
+}
